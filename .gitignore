@@ -1,0 +1,13 @@
+/target/
+/dist/
+/.wrangler/
+/node_modules/
+/test-results/
+.env
+.DS_Store
+plugin/**/bin/
+plugin/**/obj/
+plugin/artifacts/
+__pycache__/
+*.pyc
+.jj/

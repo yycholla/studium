@@ -1,0 +1,106 @@
+name: Chatpendium
+
+on:
+  push:
+    branches: [main]
+    tags: ['chatpendium-v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatpendium-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup override set 1.98.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test shared core and release validation
+        run: |
+          cargo test --locked -p chatpendium-core -p chatpendium-native
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p test_repo.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Download Dalamud development assemblies
+        run: |
+          Invoke-WebRequest https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile "$env:RUNNER_TEMP/dalamud.zip"
+          Expand-Archive "$env:RUNNER_TEMP/dalamud.zip" "$env:RUNNER_TEMP/dalamud"
+          "DALAMUD_HOME=$env:RUNNER_TEMP/dalamud" >> $env:GITHUB_ENV
+      - name: Build plugin
+        run: ./plugin/build.ps1
+      - name: Test Windows native ABI
+        run: python tests/native.py target/x86_64-pc-windows-msvc/release/chatpendium_native.dll
+      - name: Prepare release and feed
+        env:
+          REPOSITORY_URL: https://github.com/${{ github.repository }}
+        run: |
+          $output = 'plugin/Chatpendium/bin/Release'
+          New-Item -ItemType Directory -Force plugin/artifacts | Out-Null
+          Copy-Item "$output/Chatpendium/latest.zip" plugin/artifacts/Chatpendium.zip
+          $manifest = Get-Content "$output/Chatpendium.json" -Raw | ConvertFrom-Json
+          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "chatpendium-v$($manifest.AssemblyVersion)" }
+          python plugin/make_repo.py --manifest "$output/Chatpendium.json" --archive plugin/artifacts/Chatpendium.zip --repository-url $env:REPOSITORY_URL --download-url "$env:REPOSITORY_URL/releases/download/$tag/Chatpendium.zip" --tag $tag --output plugin/artifacts/repo.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chatpendium
+          path: plugin/artifacts/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/chatpendium-v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: chatpendium
+          path: artifacts
+      - name: Publish versioned download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" artifacts/Chatpendium.zip artifacts/repo.json --verify-tag --title "Chatpendium $RELEASE_TAG" --notes "Chatpendium for Dalamud. Search faces and symbols with /chatpendium, save favorites, and open it from Chat 2."
+      - name: Prepare repository website
+        run: |
+          mkdir -p public
+          cp artifacts/repo.json public/repo.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  repository-feed:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish Dalamud feed
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,24 @@
+[package]
+name = "ffxiv-emoji"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+publish = false
+
+[workspace]
+members = ["crates/chatpendium-core", "crates/chatpendium-native"]
+resolver = "3"
+
+[dependencies]
+chatpendium-core = { path = "crates/chatpendium-core" }
+topcoat = { version = "=0.5.0", default-features = false, features = ["router", "serve", "view"] }
+tokio = { version = "1.53", features = ["macros", "rt-multi-thread"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"

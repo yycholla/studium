@@ -1,0 +1,13 @@
+target
+dist
+node_modules
+.git
+.agents
+.codex
+.aws
+.env
+test-results
+plugin
+.github
+__pycache__
+.jj

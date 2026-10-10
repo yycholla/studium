@@ -1,0 +1,19 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Author>yycholla</Author>
+    <Name>Chatpendium</Name>
+    <Punchline>Find a face for your next message.</Punchline>
+    <Description>Search The Studium's text faces and symbols in game, save favorites, and copy them into chat. Includes an optional Chat 2 context menu.</Description>
+    <Tags>chat;emoji;symbols;chat2</Tags>
+    <RepoUrl>https://github.com/yycholla/studium</RepoUrl>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NativeLibraryPath>$(MSBuildThisFileDirectory)../../target/x86_64-pc-windows-msvc/release/chatpendium_native.dll</NativeLibraryPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="$(NativeLibraryPath)" Link="chatpendium_native.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CheckNativeLibrary" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(NativeLibraryPath)')" Text="Build the Rust DLL first: cargo build --locked --release -p chatpendium-native --target x86_64-pc-windows-msvc" />
+  </Target>
+</Project>
