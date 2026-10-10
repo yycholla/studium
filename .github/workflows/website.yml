@@ -67,6 +67,23 @@ jobs:
         run: devenv shell -- bash deploy/cloudflare.sh --built
       - name: Verify public site
         run: |
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 https://studium.yycholla.com/healthz | grep -Fx ok
-          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --output /dev/null https://studium.yycholla.com/account
-          echo 'Deployed to https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          check_url() {
+            local path="$1"
+            local body="$RUNNER_TEMP/studium-response.html"
+            local headers="$RUNNER_TEMP/studium-response.headers"
+            if ! curl --fail-with-body --location --silent --show-error --connect-timeout 10 --max-time 30 --retry 5 --retry-all-errors --retry-delay 5 --dump-header "$headers" --output "$body" "https://studium.yycholla.com$path"; then
+              echo "::error::Public check failed for $path after Cloudflare deployment succeeded."
+              grep -Ei '^(HTTP/|server:|cf-ray:|cf-mitigated:|location:)' "$headers" || true
+              head -c 2000 "$body" || true
+              return 1
+            fi
+            if test "$path" = "/healthz"; then
+              grep -Fx ok "$body"
+            else
+              grep -Fq 'id="account-status"' "$body"
+            fi
+          }
+          check_url /healthz
+          check_url /account
+          echo 'Deployed and verified https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"
