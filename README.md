@@ -4,6 +4,14 @@ An FFXIV companion hub for `studium.yycholla.com`. Its first tool, **Chatpendium
 
 An optional [Chatpendium Dalamud companion](plugin/README.md) adds an in-game picker and Chat 2 context menu, using a Rust core with a C# adapter. The website remains usable on its own.
 
+## Development environment and automatic deployment
+
+Run `devenv shell` for the project's Rust, Node, npm, and supporting tools. Wrangler and jsdom are installed from the npm lockfile. Use `studium-dev`, `studium-check`, `studium-build`, or `studium-deploy` inside the shell.
+
+GitHub Actions runs the same devenv checks, then applies D1 migrations and deploys successful `main` builds to Cloudflare. Add the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to enable production deployment. The XIVAuth client secret stays in the Cloudflare Worker.
+
+See [development and deployment setup](deploy/DEVELOPMENT.md) for commands, permissions, and first-time configuration.
+
 ## Run
 
 Install Rust **1.95 or newer** and a native C linker, then:

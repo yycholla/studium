@@ -1,0 +1,23 @@
+{
+  "name": "studium",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "build": "cargo run --locked --example export",
+    "test:auth": "node tests/auth.mjs",
+    "test:dom": "node tests/dom.mjs && node tests/account-dom.mjs",
+    "check": "bash deploy/check.sh",
+    "dev": "npm run build && wrangler dev --port 8787",
+    "deploy": "bash deploy/cloudflare.sh",
+    "deploy:check": "wrangler deploy --dry-run",
+    "db:migrate": "wrangler d1 migrations apply studium --remote",
+    "test:deploy": "node tests/deploy.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "26.1.0",
+    "wrangler": "4.149.0"
+  }
+}

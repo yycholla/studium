@@ -4,33 +4,67 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# Finish migrations/deployments before another main run can start.
+concurrency:
+  group: studium-website-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: ./.github/actions/devenv
+      - name: Check and build in devenv
+        run: devenv shell -- studium-check
+      - name: Record resolved Nix inputs
+        if: always()
+        run: |
+          if test -f devenv.lock; then cat devenv.lock; fi
+      - uses: actions/upload-artifact@v4
         with:
-          node-version: '24'
-      - name: Install Rust
+          name: studium-site-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://studium.yycholla.com
+    steps:
+      - name: Require Cloudflare credentials
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
-          rustup override set 1.98.1
-      - name: Check Rust and render static pages
+          if test -z "$CLOUDFLARE_API_TOKEN" || test -z "$CLOUDFLARE_ACCOUNT_ID"; then
+            echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in repository Actions secrets."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/devenv
+      - uses: actions/download-artifact@v4
+        with:
+          name: studium-site-${{ github.sha }}
+          path: dist/
+      - name: Apply D1 migrations and deploy checked build
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: devenv shell -- bash deploy/cloudflare.sh --built
+      - name: Verify public site
         run: |
-          cargo fmt --all --check
-          cargo test --workspace --locked
-          cargo run --locked --example export
-      - name: Test OAuth, sessions, and account isolation
-        run: node tests/auth.mjs
-      - name: Test browser interactions
-        run: |
-          npm install --no-save --package-lock=false jsdom@26.1.0
-          node tests/dom.mjs
-          node tests/account-dom.mjs
-      - name: Validate Worker bundle
-        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/studium-worker
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 https://studium.yycholla.com/healthz | grep -Fx ok
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --output /dev/null https://studium.yycholla.com/account
+          echo 'Deployed to https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"

@@ -21,6 +21,8 @@ The privacy and terms pages are part of the static export. Deploy the site first
 
 ## Configure Cloudflare
 
+The recommended environment is `devenv shell`; it provides Cargo, Node, and the locked Wrangler version. For automatic deployments, follow [the GitHub Actions setup](DEVELOPMENT.md). The workflow applies migrations and publishes the checked site. The commands below remain available for manual setup.
+
 Run these commands from the checkout in your own authenticated shell. Use the existing Wrangler login or a Cloudflare API token supplied through `CLOUDFLARE_API_TOKEN`. The token needs access to Workers deployment and D1, plus the existing custom-domain permissions; account IDs, database IDs, and OAuth client IDs are public configuration.
 
 ```sh

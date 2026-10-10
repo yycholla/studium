@@ -1,0 +1,21 @@
+name: Set up Studium devenv
+description: Install Nix and the devenv CLI from the project's pinned package set.
+runs:
+  using: composite
+  steps:
+    - uses: cachix/install-nix-action@v31
+    - uses: cachix/cachix-action@v16
+      with:
+        name: devenv
+    - name: Install pinned devenv CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        nixpkgs_input=$(awk '/url: github:NixOS\/nixpkgs\// { print $2; exit }' devenv.yaml)
+        test -n "$nixpkgs_input"
+        nix profile add "${nixpkgs_input}#devenv"
+        devenv version
+    - uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
