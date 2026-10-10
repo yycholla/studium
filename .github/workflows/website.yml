@@ -1,0 +1,36 @@
+name: Studium website
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component rustfmt
+          rustup override set 1.98.1
+      - name: Check Rust and render static pages
+        run: |
+          cargo fmt --all --check
+          cargo test --workspace --locked
+          cargo run --locked --example export
+      - name: Test OAuth, sessions, and account isolation
+        run: node tests/auth.mjs
+      - name: Test browser interactions
+        run: |
+          npm install --no-save --package-lock=false jsdom@26.1.0
+          node tests/dom.mjs
+          node tests/account-dom.mjs
+      - name: Validate Worker bundle
+        run: npx --yes wrangler@4 deploy --dry-run --outdir /tmp/studium-worker

@@ -171,3 +171,43 @@
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition: none !important; } }
   @media (max-width: 400px) { .header-inner { flex-wrap: wrap; padding-top: 16px; gap: 8px; } nav { width: 100%; gap: 26px; } nav a { padding: 9px 0; } }
 }
+@layer components {
+  .account-main, .policy-main { max-width: 850px; padding-block: 56px; }
+  .account-main h1, .policy-main h1 { margin: 14px 0 20px; font-size: clamp(32px, 5vw, 48px); }
+  .account-status { min-height: 26px; margin-block: 24px; color: var(--gold); }
+  .account-panel { padding: 28px; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; margin-bottom: 24px; }
+  .account-panel h2 { margin-bottom: 12px; }
+  .account-panel > p { color: var(--muted); margin-block: 12px; }
+  .account-action { display: inline-flex; align-items: center; justify-content: center; }
+  .account-panel .primary-button { margin-block: 12px; }
+  .account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .account-small { font-size: 12px; color: var(--muted); }
+  .account-small a, .policy-main a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+  .account-characters { margin-block: 24px; }
+  .account-character { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-block: 18px; border-bottom: 1px solid var(--line); }
+  .account-character strong { font-size: 17px; overflow-wrap: anywhere; }
+  .account-character p { color: var(--muted); font-size: 12px; }
+  .account-character button { flex-shrink: 0; }
+  .account-character button[aria-pressed="true"] { border-color: var(--soft-gold); color: var(--gold); }
+  .account-remove { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+  .account-remove summary { cursor: pointer; color: var(--muted); }
+  .account-remove p { margin-block: 14px; }
+  .policy-main h2 { margin: 32px 0 12px; }
+  .policy-main p { margin-bottom: 16px; color: #b5bac3; line-height: 1.85; }
+  #account-link { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@layer responsive {
+  @media (max-width: 700px) {
+    .header-inner { flex-wrap: wrap; gap: 8px 24px; padding-top: 16px; }
+    .header-inner nav { width: 100%; gap: 24px; }
+    .header-inner nav a { padding-block: 12px; }
+    .account-panel { padding: 20px; }
+    .account-character { flex-wrap: wrap; gap: 12px; }
+    .account-actions { align-items: stretch; flex-direction: column; }
+    .account-main, .policy-main { padding-block: 32px; }
+  }
+}
+@layer components {
+  .account-panel .account-action { width: auto; }
+  .account-panel .secondary-button { margin-top: 0; }
+}

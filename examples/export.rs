@@ -9,8 +9,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for (route, file) in [
         ("/", "index.html"),
         ("/chatpendium", "chatpendium/index.html"),
+        ("/account", "account/index.html"),
+        ("/privacy", "privacy/index.html"),
+        ("/terms", "terms/index.html"),
         ("/assets/app.css", "assets/app.css"),
         ("/assets/app.js", "assets/app.js"),
+        ("/assets/account.js", "assets/account.js"),
         ("/api/emoji", "api/emoji.json"),
         (
             "/api/chatpendium/v1/catalog.json",

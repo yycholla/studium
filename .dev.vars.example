@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local Wrangler only. Never commit credentials.
+XIVAUTH_CLIENT_SECRET=""
+# Register http://localhost:8787/auth/callback separately for local testing.
+SITE_ORIGIN="http://localhost:8787"

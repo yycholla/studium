@@ -1,4 +1,5 @@
 pub use chatpendium_core::catalog;
+mod account_pages;
 mod pages;
 
 use topcoat::{
@@ -14,12 +15,24 @@ pub fn router() -> Router {
     Router::builder()
         .page(pages::home)
         .page(pages::chatpendium)
+        .page(account_pages::account)
+        .page(account_pages::privacy)
+        .page(account_pages::terms)
         .route(styles)
         .route(script)
+        .route(account_script)
         .route(catalog_json)
         .route(plugin_catalog)
         .route(health)
         .build()
+}
+
+#[route(GET "/assets/account.js")]
+async fn account_script() -> Result<([(&'static str, &'static str); 1], &'static str)> {
+    Ok((
+        [("content-type", "text/javascript; charset=utf-8")],
+        include_str!("../assets/account.js"),
+    ))
 }
 
 #[route(GET "/assets/app.css")]

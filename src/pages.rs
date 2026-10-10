@@ -17,6 +17,7 @@ pub async fn home() -> Result {
                 <meta name="description" content="The Studium: little tools for life in Eorzea. Explore a growing collection of FFXIV companion tools, starting with Chatpendium.">
                 <title>"The Studium · Little tools for life in Eorzea"</title>
                 <link rel="stylesheet" href="/assets/app.css">
+                <script src="/assets/account.js" defer="defer"></script>
             </head>
             <body class="hub-page">
                 <a class="skip-link" href="#tools">"Skip to tools"</a>
@@ -65,6 +66,7 @@ async fn chatpendium_document() -> Result {
                 <title>"Chatpendium · The Studium"</title>
                 <link rel="stylesheet" href="/assets/app.css">
                 <script src="/assets/app.js" defer="defer"></script>
+                <script src="/assets/account.js" defer="defer"></script>
             </head>
             <body>
                 <a class="skip-link" href="#library">"Skip to expressions"</a>
@@ -167,7 +169,7 @@ async fn chatpendium_document() -> Result {
 }
 
 #[component]
-async fn site_header(active: &'static str) -> Result {
+pub(crate) async fn site_header(active: &'static str) -> Result {
     view! {
         <header class="site-header">
             <div class="header-inner">
@@ -178,6 +180,7 @@ async fn site_header(active: &'static str) -> Result {
                 <nav aria-label="Main navigation">
                     <a href="/" class=(if active == "hub" { "nav-current" } else { "" }) aria-current=(if active == "hub" { Some("page") } else { None })>"All tools"</a>
                     <a href="/chatpendium" class=(if active == "chatpendium" { "nav-current" } else { "" }) aria-current=(if active == "chatpendium" { Some("page") } else { None })>"Chatpendium"</a>
+                    <a id="account-link" href="/account" class=(if active == "account" { "nav-current" } else { "" }) aria-current=(if active == "account" { Some("page") } else { None })>"Account"</a>
                 </nav>
                 <span class="header-note">"A companion for Eorzea"</span>
             </div>
@@ -186,10 +189,10 @@ async fn site_header(active: &'static str) -> Result {
 }
 
 #[component]
-async fn site_footer() -> Result {
+pub(crate) async fn site_footer() -> Result {
     view! {
         <footer class="site-footer container">
-            <div><a href="/" class="footer-brand">"The Studium"</a><p>"Little tools for life in Eorzea."</p></div>
+            <div><a href="/" class="footer-brand">"The Studium"</a><p>"Little tools for life in Eorzea."</p><p><a href="/privacy">"Privacy"</a>" · "<a href="/terms">"Terms"</a></p></div>
             <p>"An unofficial fan project by yycholla."<br>"FINAL FANTASY XIV is a trademark of Square Enix. Not affiliated with Square Enix."</p>
         </footer>
     }

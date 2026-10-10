@@ -66,9 +66,9 @@ The static export also emits `/api/chatpendium/v1/catalog.json` for plugin updat
 
 ## Deploy to studium.yycholla.com
 
-### Cloudflare static hosting (recommended)
+### Cloudflare hosting (recommended)
 
-`wrangler.jsonc` configures a static site named `studium` and the custom domain `studium.yycholla.com`. Build and publish from your host terminal:
+`wrangler.jsonc` configures the Rust-rendered assets, an account Worker, and the custom domain `studium.yycholla.com`. Build and publish from your host terminal:
 
 ```sh
 nix-shell --run "cargo run --locked --example export"
@@ -79,6 +79,14 @@ npx wrangler@latest deploy
 The deployment command publishes `dist/` and configures the custom domain in your Cloudflare account. No Rust server is required after export. The configuration has been prepared locally; this project has not been deployed to Cloudflare yet. Static asset requests are free under [Cloudflare's static-assets pricing](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/).
 
 The exported hub is `dist/index.html`; Chatpendium is `dist/chatpendium/index.html`, so both directory-based hosting and Cloudflare can serve the tool. The Rust service uses `/chatpendium`; directory-based static hosts may append a trailing slash automatically. Favorites retain their original browser storage key, preserving saved expressions on the same origin after the rename.
+
+### XIVAuth accounts and character linking
+
+The `/account` page signs in through XIVAuth, lists authorized verified characters, and lets you select a character, refresh the list, sign out, or remove your Studium profile. Privacy and terms pages are available at `/privacy` and `/terms`.
+
+Follow [the XIVAuth setup guide](deploy/XIVAUTH.md) to create an OAuth client, bind a D1 database, and add the client secret securely with Wrangler. The App ID is not the OAuth client ID. Until these are configured, sign-in is unavailable and Chatpendium remains usable anonymously. No live OAuth flow has been verified by the local test suite.
+
+The Worker uses PKCE, browser-bound state, HttpOnly cookies, and CSRF protection. It does not store provider tokens. Favorites stay browser-local; linked characters do not include inventory or collection progress. Run `node tests/auth.mjs` with Node 24 for the authentication tests and `node tests/account-dom.mjs` after exporting the site and installing jsdom for account UI checks.
 
 ### Private Tailscale preview
 
@@ -96,7 +104,7 @@ Tailscale serves only `dist/`. It runs in the background and does not depend on 
 
 ### Public domain deployment
 
-The Rust server and embedded assets ship as one executable. There is no persistent server data; favorites remain on each visitor's browser and origin. Moving to a different hostname does not transfer favorites.
+The Rust server and embedded assets ship as one executable. This deployment serves the tools and UI only; account endpoints require the Cloudflare Worker. Favorites remain on each visitor's browser and origin. Moving to a different hostname does not transfer favorites.
 
 For a Linux server with Docker Compose and Caddy installed on the host:
 
@@ -111,7 +119,7 @@ The supplied configuration is a deployment starting point. No DNS records, remot
 
 ### Static hosting option
 
-Since this first tool keeps all user state in the browser, you can also run `cargo run --locked --example export` and deploy `dist/` to any static HTTPS host. Rust/Topcoat renders the same HTML at build time. In the static export the catalog is available at `/api/emoji.json` rather than the server's `/api/emoji`. Future tools that require server behavior should use the Rust service deployment instead.
+Since this first tool keeps all user state in the browser, you can also run `cargo run --locked --example export` and deploy `dist/` to any static HTTPS host. Rust/Topcoat renders the same HTML at build time. In the static export the catalog is available at `/api/emoji.json` rather than the server's `/api/emoji`. XIVAuth sign-in requires the Cloudflare Worker and D1 deployment described below; a static host alone cannot run account services.
 
 ## Project map
 
@@ -124,7 +132,10 @@ Since this first tool keeps all user state in the browser, you can also run `car
 | `assets/app.js` | Browser search, clipboard, favorites, preview |
 | `assets/app.css` | Responsive design |
 | `deploy/` | Tailscale launcher, Compose, and host Caddy configuration |
-| `wrangler.jsonc` | Cloudflare static assets and custom domain |
+| `wrangler.jsonc` | Cloudflare assets, account Worker, bindings, and custom domain |
+| `worker/index.mjs` | XIVAuth OAuth, protected sessions, and character selection |
+| `migrations/` | D1 account and session schema |
+| `src/account_pages.rs` | Account, privacy, and terms pages |
 
 `GET /api/emoji` exposes the bundled catalog as JSON; `GET /healthz` is a liveness endpoint. Future tools can live in additional Rust page modules registered in `router()`.
 
