@@ -17,6 +17,7 @@
   ],
   "main": "worker/index.mjs",
   "vars": {
-    "SITE_ORIGIN": "https://studium.yycholla.com"
+    "SITE_ORIGIN": "https://studium.yycholla.com",
+    "XIVAUTH_CLIENT_ID": "ZDV-uUXNHToUDAhbSdIjQEs7wZIT2QcZzRZOsRujU78"
   }
 }
