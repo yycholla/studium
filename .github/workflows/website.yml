@@ -23,10 +23,8 @@ jobs:
       - uses: ./.github/actions/devenv
       - name: Check and build in devenv
         run: devenv shell -- studium-check
-      - name: Record resolved Nix inputs
-        if: always()
-        run: |
-          if test -f devenv.lock; then cat devenv.lock; fi
+      - name: Verify lockfiles stayed unchanged
+        run: git diff --exit-code -- devenv.lock package-lock.json Cargo.lock
       - uses: actions/upload-artifact@v4
         with:
           name: studium-site-${{ github.sha }}
@@ -48,10 +46,14 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if test -z "$CLOUDFLARE_API_TOKEN" || test -z "$CLOUDFLARE_ACCOUNT_ID"; then
-            echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in repository Actions secrets."
-            exit 1
-          fi
+          missing=0
+          for secret_name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if test -z "${!secret_name}"; then
+              echo "::error::Missing $secret_name. Add it in repository Actions secrets."
+              missing=1
+            fi
+          done
+          exit "$missing"
       - uses: actions/checkout@v4
       - uses: ./.github/actions/devenv
       - uses: actions/download-artifact@v4
