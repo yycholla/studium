@@ -1,0 +1,62 @@
+name: Check published Chatpendium feed
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/check-feed.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify public feed and downloadable package
+        shell: python
+        run: |
+          import io
+          import json
+          import time
+          import urllib.request
+          import zipfile
+
+          def download(url):
+              request = urllib.request.Request(url, headers={"Cache-Control": "no-cache", "User-Agent": "Studium-feed-check"})
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(request, timeout=20) as response:
+                          body = response.read()
+                          print(f"HTTP {response.status}: {url} ({len(body)} bytes)")
+                          return body
+                  except Exception:
+                      if attempt == 2:
+                          raise
+                      time.sleep(5)
+
+          feed = json.loads(download("https://yycholla.github.io/studium/repo.json"))
+          assert isinstance(feed, list), "Feed must be a JSON array"
+          matches = [entry for entry in feed if entry.get("InternalName") == "Chatpendium"]
+          assert len(matches) == 1, "Expected exactly one Chatpendium entry"
+          entry = matches[0]
+          print(json.dumps(entry, indent=2))
+          assert entry.get("Name") == "Chatpendium"
+          assert entry.get("IsHide") is False
+          assert entry.get("IsTestingExclusive") is False
+          assert entry.get("ApplicableVersion") == "any"
+          assert entry.get("DalamudApiLevel", 0) > 0
+          assert entry["DownloadLinkInstall"] == entry["DownloadLinkUpdate"]
+          package_url = entry["DownloadLinkInstall"]
+          assert package_url.startswith("https://github.com/yycholla/studium/releases/download/")
+          with zipfile.ZipFile(io.BytesIO(download(package_url))) as package:
+              print("Package entries:", package.namelist())
+              manifest = json.loads(package.read("Chatpendium.json").decode("utf-8-sig"))
+              for field in ("InternalName", "Name", "AssemblyVersion", "DalamudApiLevel"):
+                  assert manifest[field] == entry[field], f"Feed/package mismatch: {field}"
+              for dll in ("Chatpendium.dll", "chatpendium_native.dll"):
+                  assert package.read(dll).startswith(b"MZ"), f"Invalid Windows DLL: {dll}"
+          stable = json.loads(download("https://goatcorp.github.io/dalamud-distrib/version"))
+          print("Current stable Dalamud:", stable)
+          print("Published feed and package passed all checks.")
