@@ -60,7 +60,7 @@ Local tests mock the provider and use SQLite. They verify the auth flow and acco
 
 For UI-only work, `cargo run --locked` still serves the Rust site; it does not implement the Worker auth endpoints. Static Tailscale previews also serve only the UI.
 
-For complete auth development, configure the public IDs above, copy `.dev.vars.example` to `.dev.vars`, and enter a development client secret there. Register `http://localhost:8787/auth/callback` with XIVAuth for that client. Override `XIVAUTH_CLIENT_ID` in `.dev.vars` when using a separate development client. Keep the callback hostname exactly `localhost`.
+For complete auth development, configure the public IDs above, copy `.dev.vars.example` to `.dev.vars`, and enter a development client secret there. The current production D1 binding has `remote: true`, as selected during database creation. Set it to `false` in your local configuration before using the isolated local database commands below. Register `http://localhost:8787/auth/callback` with XIVAuth for that client. Override `XIVAUTH_CLIENT_ID` in `.dev.vars` when using a separate development client. Keep the callback hostname exactly `localhost`.
 
 ```sh
 cargo run --locked --example export
@@ -68,7 +68,7 @@ npx wrangler@4 d1 migrations apply studium --local
 npx wrangler@4 dev --port 8787
 ```
 
-Local Wrangler uses a separate local D1 database. Access it from an SSH client with `ssh -L 8787:localhost:8787 YOUR_HOST`, then visit `http://localhost:8787/account` on your computer. Keep `.dev.vars` untracked.
+With `remote: false`, local Wrangler uses a separate local D1 database. Leaving `remote: true` makes local development access the hosted database instead. Access it from an SSH client with `ssh -L 8787:localhost:8787 YOUR_HOST`, then visit `http://localhost:8787/account` on your computer. Keep `.dev.vars` untracked.
 
 ## Behavior and data boundaries
 

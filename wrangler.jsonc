@@ -19,5 +19,14 @@
   "vars": {
     "SITE_ORIGIN": "https://studium.yycholla.com",
     "XIVAUTH_CLIENT_ID": "ZDV-uUXNHToUDAhbSdIjQEs7wZIT2QcZzRZOsRujU78"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "studium",
+      "database_id": "b7e5a6b6-09d7-44fa-90a2-c7a2b7450b26",
+      "migrations_dir": "migrations",
+      "remote": true
+    }
+  ]
 }
