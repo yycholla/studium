@@ -4,7 +4,7 @@ An in-game picker for the same text faces and symbols as [The Studium](https://s
 
 When Chat 2 is loaded, its message context menu offers **Open Chatpendium** and **Search message in Chatpendium**. The plugin also works without Chat 2. Message searches run locally and reset other filters; chat content never goes to the website. Search matches all words, so a whole sentence may have no matches.
 
-**Status:** the Rust core, Windows native ABI, and C# adapter passed the [first Windows CI build](https://github.com/yycholla/studium/actions/runs/38091137524), with zero C# compiler warnings or errors. The [test package](https://github.com/yycholla/studium/actions/runs/38091137524/artifacts/11684355966) is available as a build artifact. In-game validation remains required. No public plugin release or installer feed is live yet.
+**Status:** [Chatpendium 0.1.0](https://github.com/yycholla/studium/releases/tag/chatpendium-v0.1.0) is published, and the [release workflow](https://github.com/yycholla/studium/actions/runs/38091822836) successfully deployed the installer feed to GitHub Pages. The Windows build, Rust tests, native ABI checks, and package validation passed. In-game validation remains required.
 
 ## Why a C# adapter?
 
@@ -64,7 +64,7 @@ After that workflow succeeds, players add this URL under `/xlsettings` → Exper
 https://yycholla.github.io/studium/repo.json
 ```
 
-This is a planned destination until the first release is published. The generator uses the built manifest's version and API level, verifies tag agreement, and checks that the ZIP contains both Windows DLLs and the matching manifest. Downloads use versioned URLs. Increase the project version and update `plugin/release.json` (or push the matching tag) for subsequent updates. The same JSON format supports public GitLab Pages and release assets if hosting changes. See [Dalamud's custom-repository specification](https://dalamud.dev/plugin-publishing/custom-repositories/).
+The generator uses the built manifest's version and API level, verifies tag agreement, and checks that the ZIP contains both Windows DLLs and the matching manifest. Downloads use versioned URLs. Increase the project version and update `plugin/release.json` (or push the matching tag) for subsequent updates. The same JSON format supports public GitLab Pages and release assets if hosting changes. See [Dalamud's custom-repository specification](https://dalamud.dev/plugin-publishing/custom-repositories/).
 
 `plugin/make_repo.py --help` documents manual feed generation. No fake installer entry is committed before a real package exists.
 
