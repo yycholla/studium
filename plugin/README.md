@@ -4,7 +4,7 @@ An in-game picker for the same text faces and symbols as [The Studium](https://s
 
 When Chat 2 is loaded, its message context menu offers **Open Chatpendium** and **Search message in Chatpendium**. The plugin also works without Chat 2. Message searches run locally and reset other filters; chat content never goes to the website. Search matches all words, so a whole sentence may have no matches.
 
-**Status:** source implementation with tested Rust core and native C ABI. The C# adapter has not yet been compiled: the development sandbox lacks the .NET/Dalamud SDK. Windows CI and in-game validation remain required. No plugin release or installer feed is live yet.
+**Status:** the Rust core, Windows native ABI, and C# adapter passed the [first Windows CI build](https://github.com/yycholla/studium/actions/runs/38091137524), with zero C# compiler warnings or errors. The [test package](https://github.com/yycholla/studium/actions/runs/38091137524/artifacts/11684355966) is available as a build artifact. In-game validation remains required. No public plugin release or installer feed is live yet.
 
 ## Why a C# adapter?
 
