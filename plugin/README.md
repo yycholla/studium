@@ -49,7 +49,9 @@ The source repository is `yycholla/studium`. GitHub Releases hosts plugin ZIPs a
 
 `.github/workflows/chatpendium.yml` builds on `main`, pull requests, and manual runs. It runs Rust tests, exercises the actual Windows native DLL, builds the adapter, and uploads an artifact. Ordinary commits do not publish a release.
 
-After the Windows build passes, test it in game. Then select **GitHub Actions** under the GitHub repository's **Settings → Pages**. Ensure the `github-pages` environment allows deployment from `chatpendium-v*` tags. Release the version matching `<Version>` in `Chatpendium.csproj`:
+Select **GitHub Actions** under the repository's **Settings → Pages** and allow deployments from `main`. To request a release, update `<Version>` in `Chatpendium.csproj` and change the tag in `plugin/release.json` to the matching `chatpendium-vMAJOR.MINOR.PATCH`. Commit both changes to `main`. The workflow tests and packages that exact commit, creates its version tag and GitHub Release, then deploys the feed. An unchanged release-request file does not publish again; pull requests and manual builds only produce test artifacts.
+
+Alternatively, allow the `github-pages` environment to deploy from `chatpendium-v*` tags and push a matching version tag:
 
 ```sh
 git tag chatpendium-v0.1.0
@@ -62,7 +64,7 @@ After that workflow succeeds, players add this URL under `/xlsettings` → Exper
 https://yycholla.github.io/studium/repo.json
 ```
 
-This is a planned destination until the first release is published. The generator uses the built manifest's version and API level, verifies tag agreement, and checks that the ZIP contains both Windows DLLs and the matching manifest. Downloads use versioned URLs. Increase the project version and tag it for subsequent updates. The same JSON format supports public GitLab Pages and release assets if hosting changes. See [Dalamud's custom-repository specification](https://dalamud.dev/plugin-publishing/custom-repositories/).
+This is a planned destination until the first release is published. The generator uses the built manifest's version and API level, verifies tag agreement, and checks that the ZIP contains both Windows DLLs and the matching manifest. Downloads use versioned URLs. Increase the project version and update `plugin/release.json` (or push the matching tag) for subsequent updates. The same JSON format supports public GitLab Pages and release assets if hosting changes. See [Dalamud's custom-repository specification](https://dalamud.dev/plugin-publishing/custom-repositories/).
 
 `plugin/make_repo.py --help` documents manual feed generation. No fake installer entry is committed before a real package exists.
 

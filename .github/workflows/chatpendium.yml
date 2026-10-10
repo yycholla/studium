@@ -11,17 +11,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: chatpendium-${{ github.ref }}
+  group: chatpendium
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      publish: ${{ steps.package.outputs.publish }}
+      release_tag: ${{ steps.package.outputs.release_tag }}
     defaults:
       run:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
@@ -50,16 +55,39 @@ jobs:
       - name: Test Windows native ABI
         run: python tests/native.py target/x86_64-pc-windows-msvc/release/chatpendium_native.dll
       - name: Prepare release and feed
+        id: package
         env:
+          PUSH_BEFORE: ${{ github.event.before }}
           REPOSITORY_URL: https://github.com/${{ github.repository }}
         run: |
           $output = 'plugin/Chatpendium/bin/Release'
           New-Item -ItemType Directory -Force plugin/artifacts | Out-Null
           Copy-Item "$output/Chatpendium/latest.zip" plugin/artifacts/Chatpendium.zip
           $manifest = Get-Content "$output/Chatpendium.json" -Raw | ConvertFrom-Json
-          $tag = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME } else { "chatpendium-v$($manifest.AssemblyVersion)" }
+          $publish = 'false'
+          $tag = "chatpendium-v$($manifest.AssemblyVersion)"
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+            $publish = 'true'
+          } elseif ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF -eq 'refs/heads/main' -and (Test-Path plugin/release.json)) {
+            if ([string]::IsNullOrEmpty($env:PUSH_BEFORE) -or $env:PUSH_BEFORE -match '^0+$') {
+              $changed = @(git diff-tree --root --no-commit-id --name-only -r HEAD -- plugin/release.json)
+            } else {
+              $changed = @(git diff --name-only $env:PUSH_BEFORE $env:GITHUB_SHA -- plugin/release.json)
+            }
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ($changed -contains 'plugin/release.json') {
+              $tag = (Get-Content plugin/release.json -Raw | ConvertFrom-Json).tag
+              $publish = 'true'
+            }
+          }
+          if ($tag -notmatch '^chatpendium-v[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$') {
+            throw 'Invalid Chatpendium release tag.'
+          }
           python plugin/make_repo.py --manifest "$output/Chatpendium.json" --archive plugin/artifacts/Chatpendium.zip --repository-url $env:REPOSITORY_URL --download-url "$env:REPOSITORY_URL/releases/download/$tag/Chatpendium.zip" --tag $tag --output plugin/artifacts/repo.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "publish=$publish" >> $env:GITHUB_OUTPUT
+          "release_tag=$tag" >> $env:GITHUB_OUTPUT
       - uses: actions/upload-artifact@v4
         with:
           name: chatpendium
@@ -67,7 +95,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: startsWith(github.ref, 'refs/tags/chatpendium-v')
+    if: needs.build.outputs.publish == 'true'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -81,8 +109,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" artifacts/Chatpendium.zip artifacts/repo.json --verify-tag --title "Chatpendium $RELEASE_TAG" --notes "Chatpendium for Dalamud. Search faces and symbols with /chatpendium, save favorites, and open it from Chat 2."
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: gh release create "$RELEASE_TAG" artifacts/Chatpendium.zip artifacts/repo.json --target "$RELEASE_COMMIT" --title "Chatpendium $RELEASE_TAG" --notes "Chatpendium for Dalamud. Search faces and symbols with /chatpendium, save favorites, and open it from Chat 2. Windows build and automated tests passed; in-game validation is still pending."
       - name: Prepare repository website
         run: |
           mkdir -p public
