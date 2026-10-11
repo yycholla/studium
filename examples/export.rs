@@ -12,6 +12,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ("/account", "account/index.html"),
         ("/privacy", "privacy/index.html"),
         ("/terms", "terms/index.html"),
+        ("/favicon.ico", "favicon.ico"),
+        ("/assets/favicon.png", "assets/favicon.png"),
         ("/assets/app.css", "assets/app.css"),
         ("/assets/app.js", "assets/app.js"),
         ("/assets/account.js", "assets/account.js"),

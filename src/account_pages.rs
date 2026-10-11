@@ -10,6 +10,7 @@ pub async fn account() -> Result {
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <meta name="robots" content="noindex">
                 <title>"Your account · The Studium"</title>
+                crate::pages::favicon_links()
                 <link rel="stylesheet" href="/assets/app.css">
                 <script src="/assets/account.js" defer="defer"></script>
             </head>
@@ -59,7 +60,7 @@ pub async fn privacy() -> Result {
     view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Privacy · The Studium"</title><link rel="stylesheet" href="/assets/app.css"></head>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Privacy · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"></head>
             <body>
                 crate::pages::site_header(active: "")
                 <main class="container policy-main">
@@ -88,7 +89,7 @@ pub async fn terms() -> Result {
     view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Terms · The Studium"</title><link rel="stylesheet" href="/assets/app.css"></head>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Terms · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"></head>
             <body>
                 crate::pages::site_header(active: "")
                 <main class="container policy-main">

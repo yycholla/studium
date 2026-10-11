@@ -143,8 +143,11 @@
   .section-meta { color: var(--muted); font-size: 13px; }
   .tool-card { display: grid; grid-template-columns: 260px minmax(0, 1fr); border: 1px solid var(--soft-gold); border-radius: 5px; overflow: hidden; background: var(--panel); }
   .tool-card:hover { background: var(--panel-hover); border-color: var(--sage); }
-  .tool-illustration { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; min-height: 238px; color: var(--sage); border-right: 1px solid var(--line); font-size: 32px; }
-  .tool-illustration span:first-child, .tool-illustration span:last-child { font-size: 24px; color: var(--muted); }
+  .tool-illustration { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; min-height: 238px; background: #1d3025; color: var(--gold); border-right: 1px solid var(--line); font-size: 40px; }
+  .tool-illustration::before { content: ''; position: absolute; bottom: -26px; right: -24px; width: 175px; height: 175px; background: url('/assets/botanical/branch.webp') center / contain no-repeat; opacity: .2; transform: rotate(-12deg); pointer-events: none; }
+  .tool-illustration span { position: relative; }
+  .tool-illustration span:first-child { transform: rotate(-12deg) translateX(-32px); font-size: 27px; color: var(--sage); }
+  .tool-illustration span:last-child { transform: rotate(14deg) translateX(44px); font-size: 35px; color: #cfb0a3; }
   .tool-description { padding: 32px; align-self: center; }
   .tool-description h3 { font: 30px var(--serif); margin: 8px 0 12px; }
   .tool-description > p:not(.eyebrow) { color: var(--muted); max-width: 56ch; }
@@ -187,4 +190,8 @@
 /* Responsive grid tracks must not override the chosen list presentation. */
 @layer responsive {
   #results[data-view='list'] { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 560px) {
+    .tool-illustration span:first-child { transform: rotate(-12deg); }
+    .tool-illustration span:last-child { transform: rotate(14deg); }
+  }
 }

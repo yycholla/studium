@@ -55,6 +55,10 @@ Icons come from Phosphor Icons Core 2.1.1 (Light with a filled favorite state), 
 
 All fonts, icons, and botanical images are embedded in the Rust application and emitted by the static exporter. Add future assets to both paths and test their content types. Avoid remote runtime dependencies for visual identity.
 
+The favicon is a simplified three-leaf sprig with broad cream/sage leaves and brass veins against forest green. `assets/favicon.png` supplies a 64px browser icon; `assets/favicon.ico` contains 16, 32, 48, and 64px variants and is served at `/favicon.ico`. Every page includes the shared favicon links. The built-in Image Gen tool generated the mark using the original sprig as a reference. Final prompt: “Create a simplified version of that sprig optimized for recognition at 16 and 32 pixels: one diagonal stem with three broad olive leaves, maintaining the same natural leaf shapes and sage-and-warm-brass palette. Make the leaves solid light sage/cream with only a few strong engraved veins, much bolder than the reference's detailed illustration. Center the compact sprig to occupy about 85% of the square, on a flat dark forest background #132019, with no border, no shadow, no gradient, no text, no lettering, no surrounding scene. Strong readable silhouette and clean edges. A single finished favicon asset, not a presentation or a sheet of options.”
+
+The Chatpendium tile on All tools keeps the original playful expression arrangement: angled and staggered faces, warm gold/sage accents, a muted rose heart, and subtle botanical foliage behind the group. Avoid flattening those expressions into a uniform stack.
+
 ## Extending the hub
 
 Future tools should reuse the header, typography, surfaces, action styles, and compact footer. Give each tool a plain name and explain its actual use in one sentence. Keep decorative foliage near page margins and away from interactive controls. The home, account, and policy pages inherit this baseline without changing their existing service behavior.

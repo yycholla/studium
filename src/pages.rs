@@ -16,6 +16,7 @@ pub async fn home() -> Result {
                 <meta name="theme-color" content="#17251f">
                 <meta name="description" content="The Studium: little tools for life in Eorzea. Explore a growing collection of FFXIV companion tools, starting with Chatpendium.">
                 <title>"The Studium · Little tools for life in Eorzea"</title>
+                favicon_links()
                 <link rel="stylesheet" href="/assets/app.css">
                 <script src="/assets/account.js" defer="defer"></script>
             </head>
@@ -64,6 +65,7 @@ async fn chatpendium_document() -> Result {
                 <meta name="theme-color" content="#17251f">
                 <meta name="description" content="Text faces and symbols for FFXIV chat. Search, save your favorites, and copy a face into chat.">
                 <title>"Chatpendium · The Studium"</title>
+                favicon_links()
                 <link rel="stylesheet" href="/assets/app.css">
                 <script src="/assets/app.js" defer="defer"></script>
                 <script src="/assets/account.js" defer="defer"></script>
@@ -138,6 +140,14 @@ async fn chatpendium_document() -> Result {
                 </dialog>
             </body>
         </html>
+    }
+}
+
+#[component]
+pub(crate) async fn favicon_links() -> Result {
+    view! {
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" sizes="16x16 32x32 48x48 64x64">
+        <link rel="icon" href="/assets/favicon.png" type="image/png" sizes="64x64">
     }
 }
 
