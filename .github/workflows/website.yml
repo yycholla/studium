@@ -110,7 +110,5 @@ jobs:
           check_url /account
           check_url /api/auth/session
           check_url /field-notes
-          for kind in mounts minions emotes facewear; do
-            check_url "/api/field-notes/catalog?kind=$kind"
-          done
+          node tests/collect-live.mjs --studium
           echo 'Deployed and verified https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"

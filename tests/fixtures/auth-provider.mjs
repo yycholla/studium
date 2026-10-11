@@ -8,6 +8,10 @@ export default {
       return Response.json(paths);
     }
     paths.push(`${url.hostname}${url.pathname}`);
+    if (url.hostname === 'ffxivcollect.com') {
+      if (mode === 'collect-redirect') return Response.redirect('https://untrusted.test/collect', 307);
+      return Response.json({count:1,results:[{id:1,name:'Company Chocobo',icon:'https://ffxivcollect.com/images/mounts/1.png',sources:[{type:'Quest',text:'My Little Chocobo'}]}]});
+    }
     if (url.hostname !== 'xivauth.net') throw new Error('Credentials followed a provider redirect');
     const redirectPath = { token: '/oauth/token', user: '/api/v1/user', characters: '/api/v1/characters', revoke: '/oauth/revoke' }[mode];
     if (url.pathname === redirectPath) return Response.redirect('https://untrusted.test/collect', 307);

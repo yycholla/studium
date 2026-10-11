@@ -1,0 +1,16 @@
+name: Collection diagnostics
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [tests/collect-live.mjs, .github/workflows/collection-diagnostics.yml]
+permissions:
+  contents: read
+jobs:
+  public-catalogs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check current public catalogs
+        run: node tests/collect-live.mjs --studium --once

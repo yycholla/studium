@@ -177,7 +177,7 @@
   $('header-account-logout').addEventListener('click', () => mutate('/api/auth/logout', null, 'Signed out of Studium.', true));
   $('account-logout')?.addEventListener('click', () => mutate('/api/auth/logout', null, 'Signed out of Studium.'));
   $('account-delete')?.addEventListener('click', () => {
-    if (window.confirm('Remove your Studium profile, linked characters, and all sign-in sessions?')) {
+    if (window.confirm('Remove your Studium profile, linked characters, collection snapshots, wishlists, notes, and all sign-in sessions?')) {
       mutate('/api/auth/account', null, 'Your Studium account has been removed.');
     }
   });
