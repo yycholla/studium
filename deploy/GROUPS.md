@@ -22,13 +22,13 @@ Each activity lists the rewards and selected members who might benefit. Results 
 
 Collection ownership requires an opted-in public collection, a ready snapshot, and source/check timestamps within the last 24 hours. Failed syncs, older data, missing/private collections, and unlinked characters are unknown, never confirmed missing. Wishlist suggestions can still appear with unknown/stale ownership and are labeled accordingly. Known collected goals do not count as benefits. Browser-reported snapshots remain advisory, as in Field Notes; matching does not establish game entitlement or independently verified progress.
 
-Opening a group reads each member’s saved Field Notes journal; it does not request other members’ Lodestone data or trigger their browser sync. Members sync their own character by opening Field Notes. New saved snapshots/goals are reflected on the next group refresh. Catalog failures identify incomplete/cached comparisons and offer retry. No duty unlock, role, party-size, availability, drop-rate, or guarantee-of-reward claims are made.
+For joined members, opening a group reads each member’s saved Field Notes journal; it does not request other members’ Lodestone data or trigger their browser sync. Members sync their own character by opening Field Notes. New saved snapshots/goals are reflected on the next group refresh. Catalog failures identify incomplete/cached comparisons and offer retry. No duty unlock, role, party-size, availability, drop-rate, or guarantee-of-reward claims are made.
 
 ## Storage and APIs
 
 Migration `0004_collection_groups.sql` adds groups and memberships with account/group foreign-key cascades. Memberships use account + Lodestone ID, surviving replacement of character rows during XIVAuth refresh. Every shared read verifies the member’s character is still linked; unlinking suppresses their name, collections, and goals. Deleting an account removes its memberships and owned groups. Expired parties are denied immediately and their records are deleted on subsequent authenticated group activity. Existing personal journals remain when groups are deleted.
 
-All `/api/groups/*` routes run through the Worker before assets. Responses are private/no-store; all writes require a session, same-origin JSON, and CSRF token. Group/member IDs are not access credentials. Mutating requests are limited to 4 KB.
+All `/api/groups/*` routes run through the Worker before assets. Responses are private/no-store; all writes require a session, same-origin JSON, and CSRF token. Group/member IDs are not access credentials. Mutating requests are limited to 4 KB, except public collection reports (300 KB).
 
 - `GET list`: groups for the current account.
 - `GET detail?id=…`: member-only roster and shared projections.
@@ -45,3 +45,19 @@ All `/api/groups/*` routes run through the Worker before assets. Responses are p
 ## Validation
 
 `npm run test:groups` exercises the actual Worker router with SQLite migrations, access/CSRF and consent boundaries, invitation rotation, unlinking, account deletion, expiry, limits, matching, and exported-page interactions. A two-account Chromium test uses those same backend routes to create, join, compare, revoke sharing, and leave. Website CI runs it at 320–1440 px and retains screenshots. Production verification checks the exported groups page after migrations and deployment.
+
+
+## Public friends and FC comparisons
+
+Owners can load a public Lodestone roster using one of their linked characters, select characters across pages, and add up to 50 public comparison entries. A public entry is not a membership, cannot read the group, and never reads another account’s journals, goals, notes, or linked characters. Existing group members take precedence even when their sharing is disabled; joining or switching to an imported character removes that import permanently. Sources reflect the imported roster, not a live assertion of friendship/FC membership. Re-import/remove to reflect roster changes.
+
+`0006_public_group_characters.sql` adds separate group-scoped public snapshots and short-lived roster previews. All new endpoints require a session, group membership, ownership, same-origin JSON, and CSRF:
+
+- `POST roster {group_id,character_key,source,page}`: `friends` or `fc`, 1–11 pages. Only the caller’s linked characters may anchor a roster. FC ID comes from that character’s public profile. Fetches fixed public Lodestone URLs with no cookies, manual redirects, 15-second timeout, and 2 MB response cap. Native HTMLRewriter parses only roster entries. Empty/private/unrecognized pages fail explicitly; they never mean a complete empty roster. A per-group two-second reservation limits concurrent requests. Previews expire after 15 minutes and are removed on subsequent group activity.
+- `POST public-add {group_id,ids}`: validates IDs against the recent preview and adds comparison entries. No invitations or group memberships are created.
+- `POST public-remove {group_id,public_id}`: removes the import and snapshot.
+- `POST public-sync {group_id,public_id,profile|status}`: validates and stores only supported public collection fields. The browser fetches FFXIV Collect using official CORS, omits credentials, rejects redirects, bounds responses, and strips private IDs before reporting. The server independently normalizes and discards private fields. This is advisory browser-reported progress, never an entitlement or proof of game ownership.
+
+While an owner views a group, public characters are checked sequentially at 1.5-second intervals when due. Successful checks are cached for an hour, failures for five minutes. Switching groups or accounts aborts pending provider work; response versioning prevents a late result from restoring removed/shared data. Private, untracked, malformed, failed, and stale collections cannot count as confirmed missing. Source timestamps remain visible. Provider data may itself be cached. There is no scheduled background roster or collection scrape.
+
+`tests/public-groups.mjs` covers access, provenance, consent precedence, private IDs, untracked/failure behavior, caps, and cascades. `tests/rosters-runtime.mjs` exercises the native Workers HTML parser; CI also parses live public friends and FC pages. Before production deployment, `tests/rosters-edge.mjs` uses an isolated Wrangler remote-dev preview to verify public friends, FC roster parsing, and character-linked FC lookup from Cloudflare itself. The probe has no production database or secrets bindings, exposes only fixed checks, reports counts, and is stopped after validation. Provider refusal in the application is shown as an unavailable message and never interprets collections as missing.

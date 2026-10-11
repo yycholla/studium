@@ -48,3 +48,6 @@
 .group-help p + p { margin-top: 12px; }
 @media (max-width: 900px) { .group-layout { grid-template-columns: 1fr; } .group-layout > aside { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; } }
 @media (max-width: 560px) { .group-main { padding-top: 28px; } .group-layout > aside, .group-filters { grid-template-columns: 1fr; } .group-panel, .group-run { padding: 16px; } .group-member { flex-direction: column; } }
+
+#group-roster-results { max-height: 360px; overflow-y: auto; margin-block: 12px; }
+#group-roster-results .group-check { overflow-wrap: anywhere; }

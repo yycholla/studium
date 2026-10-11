@@ -16,7 +16,7 @@
     "db:migrate": "wrangler d1 migrations apply studium --remote",
     "test:deploy": "node tests/deploy.mjs",
     "test:field-notes": "node tests/field-notes.mjs && node tests/field-notes-dom.mjs",
-    "test:groups": "node tests/groups.mjs && node tests/group-planner.mjs && node tests/groups-dom.mjs"
+    "test:groups": "node tests/public-groups.mjs && node tests/rosters-runtime.mjs && node tests/groups.mjs && node tests/group-planner.mjs && node tests/groups-dom.mjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0",

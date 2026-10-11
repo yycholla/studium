@@ -6,7 +6,8 @@
   const collectionNames = {all:'All collections',mounts:'Mounts',minions:'Minions',emotes:'Emotes',facewear:'Facewear'};
   const kindNames = {mounts:'Mount',minions:'Minion',emotes:'Emote',facewear:'Facewear'};
   let account=null, csrf=null, generation=0, reads=0, accountEvents=0, busy=false, active=null, groups=[], catalogs=[], catalogErrors=0, catalogLoading=false, selected=new Set(), limit=12;
-  let invitation='', preview=null;
+  let invitation='', preview=null, roster=null, rosterPicked=new Set(), publicSyncing=false, syncAbort=null, rosterRevision=0;
+  const publicRetries=new Map();
   const storageKey='studium-group-invitation';
   try { invitation=sessionStorage.getItem(storageKey)||''; } catch { /* Storage can be disabled. */ }
   const incoming=new URLSearchParams(location.hash.slice(1)).get('invite');
@@ -58,11 +59,12 @@
     if(!groups.length)target.append(node('p','No groups yet. Create one below or follow an invitation.','group-small'));
   }
   async function loadList() {const data=await api('list');groups=data.groups;renderList();}
-  function clearDetail() {active=null;selected.clear();for(const id of ['group-name','group-type','group-expiry','group-result-count'])$(id).textContent='';$('group-detail').hidden=true;$('group-empty').hidden=false;$('group-members').replaceChildren();$('group-results').replaceChildren();$('group-sharing-fields').replaceChildren();$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;}
+  function clearDetail() {resetRoster();syncAbort?.abort();active=null;selected.clear();for(const id of ['group-name','group-type','group-expiry','group-result-count'])$(id).textContent='';$('group-detail').hidden=true;$('group-empty').hidden=false;$('group-members').replaceChildren();$('group-results').replaceChildren();$('group-sharing-fields').replaceChildren();$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;}
   async function open(id) {const data=await api(`detail?id=${encodeURIComponent(id)}`);accept(data,true);}
   function accept(data, full=false) {
     const changed=active?.id!==data.id, focusChanged=active?.collection_focus!==data.collection_focus;active=data;
-    if(changed)$('group-collection').value='group';
+    if(changed){$('group-collection').value='group';resetRoster();syncAbort?.abort();}
+    $('group-import').hidden=!data.is_owner;
     if(changed||focusChanged)limit=12;
     $('group-collection-default').textContent=`Group focus: ${collectionNames[data.collection_focus || 'all']}`;
     $('group-focus-settings').hidden=!data.is_owner;
@@ -83,13 +85,13 @@
     if(!member.character)return 'Character no longer linked. Shared data is unavailable.';
     const parts=[];
     if(!member.share_collections)parts.push('Collections not shared');
-    else if(!member.sync?.snapshot)parts.push('Collections unknown · open Field Notes to sync');
+    else if(!member.sync?.snapshot)parts.push(member.public_character?({private:'Collect profile is private',not_found:'Not tracked by FFXIV Collect',unavailable:'Collection service unavailable',pending:'Waiting for public collection sync'}[member.sync?.status]||'Collections unknown'):'Collections unknown · open Field Notes to sync');
     else {
       const states=['mounts','minions','emotes','facewear'].map(k=>StudiumGroupPlanner.ownership(member,k,-1));
       parts.push(states.includes('stale')?'Stale collection data · ownership unknown':states.includes('unknown')?'Some collections private or unknown':'Public collections available');
       const time=Date.parse(member.sync.snapshot.source_updated_at);if(Number.isFinite(time))parts.push(`Source updated ${new Date(time).toLocaleString()}`);
     }
-    parts.push(member.share_wishlist?'Wishlist shared':'Wishlist not shared');return parts.join(' · ');
+    if(member.public_character)parts.push(`Public ${member.source==='fc'?'FC':'friends'} import · no group access`);else parts.push(member.share_wishlist?'Wishlist shared':'Wishlist not shared');return parts.join(' · ');
   }
   function renderMembers() {
     const target=$('group-members');target.replaceChildren();
@@ -98,7 +100,8 @@
       label.append(check,document.createTextNode(`${member.character?`${member.character.name} · ${member.character.home_world}`:'Unlinked character'}${member.self?' (you)':''}${member.owner?' · owner':''}`));
       check.addEventListener('change',()=>{check.checked?selected.add(member.id):selected.delete(member.id);limit=12;renderResults();});
       info.append(label,node('p',freshness(member),'group-small'));row.append(info);
-      if(active.is_owner&&!member.self){const details=node('details'),summary=node('summary','Remove member'),button=node('button','Remove & revoke invite','secondary-button');button.type='button';button.addEventListener('click',()=>run(async()=>{const data=await api('remove',{group_id:active.id,member_id:member.id});accept(data.group);$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;await loadList();feedback('Member removed. The previous invite link has been revoked.');}));details.append(summary,button);row.append(details);}
+      if(active.is_owner&&member.public_character){const button=node('button','Remove public character','secondary-button');button.type='button';button.addEventListener('click',()=>run(async()=>{accept((await api('public-remove',{group_id:active.id,public_id:member.id})).group);feedback('Public character removed.');}));row.append(button);}
+      else if(active.is_owner&&!member.self){const details=node('details'),summary=node('summary','Remove member'),button=node('button','Remove & revoke invite','secondary-button');button.type='button';button.addEventListener('click',()=>run(async()=>{const data=await api('remove',{group_id:active.id,member_id:member.id});accept(data.group);$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;await loadList();feedback('Member removed. The previous invite link has been revoked.');}));details.append(summary,button);row.append(details);}
       target.append(row);
     }
   }
@@ -107,7 +110,7 @@
     const collection=$('group-collection').value==='group'?(active.collection_focus || 'all'):$('group-collection').value;
     const results=StudiumGroupPlanner.compare(catalogs,active.members,{collection,selected:[...selected],scope:$('group-scope').value,query:$('group-search').value,wishlistOnly:$('group-wishlist-only').checked,everyone:$('group-everyone').checked});
     const target=$('group-results');target.replaceChildren();
-    $('group-result-count').textContent=`${results.length} matching activities · ${collectionNames[collection]} · ${selected.size} members selected`;
+    $('group-result-count').textContent=`${results.length} matching activities · ${collectionNames[collection]} · ${selected.size} characters selected`;
     $('group-more').hidden=results.length<=limit;
     for(const result of results.slice(0,limit)) {
       const section=node('article','','group-run');section.append(node('p',result.type,'eyebrow'),node('h3',result.title));
@@ -147,12 +150,68 @@
     const dismiss=node('button','Dismiss invitation','secondary-button');dismiss.type='button';dismiss.addEventListener('click',()=>{forgetInvitation();target.replaceChildren();target.hidden=true;});target.append(dismiss);
   }
   async function receiveAccount(data) {
-    generation++;reads++;busy=false;const previous=account;account=data.account||null;csrf=data.csrf_token||null;clearDetail();groups=[];renderList();$('group-invitation').replaceChildren();$('group-invitation').hidden=true;feedback('');
+    generation++;reads++;busy=false;publicRetries.clear();const previous=account;account=data.account||null;csrf=data.csrf_token||null;clearDetail();groups=[];renderList();$('group-invitation').replaceChildren();$('group-invitation').hidden=true;feedback('');
     $('group-workspace').hidden=!account;$('group-auth').hidden=Boolean(account);$('group-login').hidden=Boolean(account)||!data.configured;
     $('group-auth-message').textContent=account?'':data.configured?`Sign in to create a group or review an invitation.${invitation?' After signing in, return to Collection groups to review this invitation.':''}`:'Sign-in is currently unavailable. Try again shortly.';
     if(!account){if(previous)forgetInvitation();$('group-create-sharing').replaceChildren();return;}
+    const rosterSelect=$('group-roster-character');rosterSelect.replaceChildren();for(const c of account.characters||[]){const o=node('option',`${c.name} · ${c.home_world}`);o.value=c.persistent_key;rosterSelect.append(o);}if(account.selected_character_key)rosterSelect.value=account.selected_character_key;
     sharingFields($('group-create-sharing'));await run(async()=>{await loadList();await reviewInvitation();});
   }
+  function resetRoster() {
+    rosterRevision++;roster=null;rosterPicked.clear();$('group-roster-results').replaceChildren();$('group-roster-status').textContent='';$('group-roster-next').hidden=true;$('group-roster-add').hidden=true;
+  }
+  async function loadRoster(page=1) {
+    const form=$('group-roster-form'),groupId=active.id,revision=rosterRevision;
+    const data=await api('roster',{group_id:groupId,character_key:form.elements.character_key.value,source:form.elements.source.value,page});
+    if(active?.id!==groupId||revision!==rosterRevision)return;
+    roster=data.roster;
+    const target=$('group-roster-results');target.replaceChildren();
+    for(const c of roster.characters){const label=node('label','','group-check'),check=node('input');check.type='checkbox';check.value=c.lodestone_id;check.checked=rosterPicked.has(c.lodestone_id);check.disabled=active.members.some(m=>m.character?.lodestone_id===c.lodestone_id);label.append(check,document.createTextNode(`${c.name} · ${c.home_world}${check.disabled?' · already in group':''}`));check.addEventListener('change',()=>{check.checked?rosterPicked.add(c.lodestone_id):rosterPicked.delete(c.lodestone_id);rosterStatus();});target.append(label);}
+    $('group-roster-next').hidden=roster.page>=roster.pages;$('group-roster-add').hidden=false;rosterStatus();
+  }
+  function rosterStatus(){if(roster)$('group-roster-status').textContent=`Page ${roster.page} of ${roster.pages} · ${rosterPicked.size} selected across loaded pages`;}
+  $('group-roster-form').addEventListener('submit',event=>{event.preventDefault();run(async()=>{resetRoster();await loadRoster();});});
+  for(const id of ['group-roster-character','group-roster-source'])$(id).addEventListener('change',resetRoster);
+  $('group-roster-next').addEventListener('click',()=>run(()=>loadRoster(roster.page+1)));
+  $('group-roster-add').addEventListener('click',()=>run(async()=>{
+    if(!rosterPicked.size)throw Error('Choose at least one character from the public roster.');
+    const data=await api('public-add',{group_id:active.id,ids:[...rosterPicked]});
+    accept(data.group);let added=0;
+    for(const m of active.members)if(m.public_character&&rosterPicked.has(m.character.lodestone_id)){selected.add(m.id);added++;}
+    resetRoster();renderMembers();renderResults();feedback(`${added} selected public characters are now in this comparison. Public collections will sync automatically.`);
+  }));
+  async function readPublicCollections(id,signal) {
+    try {
+      const response=await fetch(`https://ffxivcollect.com/api/characters/${id}?ids=1&latest=1`,{credentials:'omit',mode:'cors',redirect:'error',headers:{Accept:'application/json'},signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
+      const reader=response.body.getReader(),chunks=[];let size=0;
+      for(;;){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>1000000){await reader.cancel();throw Error('size');}chunks.push(value);}
+      const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+      const data=JSON.parse(new TextDecoder().decode(bytes));
+      if(!response.ok){if(response.headers.get('Content-Type')?.includes('application/json')){if(response.status===403&&data.status===403&&data.error==='Character is set to private')return {status:'private'};if(response.status===404&&data.status===404&&data.error==='Not found')return {status:'not_found'};}return {status:'unavailable'};}
+      const profile={id:data.id,last_parsed:data.last_parsed};
+      for(const kind of Object.keys(kindNames)){const value=data[kind];if(value)profile[kind]={public:value.public,count:value.count,ids:value.public===true?value.ids:null};}
+      return {profile};
+    }catch{return {status:'unavailable'};}
+  }
+  async function syncPublic() {
+    if(!active?.is_owner||busy||publicSyncing||document.hidden)return;
+    const member=active.members.find(m=>m.public_character&&m.next_check_at*1000<=Date.now()&&(publicRetries.get(m.id)||0)<=Date.now());
+    if(!member)return;
+    publicSyncing=true;syncAbort=new AbortController();const controller=syncAbort,version=generation,groupId=active.id;
+    publicRetries.set(member.id,Date.now()+300000);
+    try {
+      const report=await readPublicCollections(member.character.lodestone_id,controller.signal);
+      if(controller.signal.aborted||version!==generation||active?.id!==groupId)return;
+      // Do not let background work overwrite a newer sharing/import mutation or poll.
+      if(busy||!active.members.some(m=>m.id===member.id&&m.public_character))return;
+      const sequence=++reads;
+      const data=await api('public-sync',{group_id:groupId,public_id:member.id,...report},version);
+      if(version===generation&&active?.id===groupId&&sequence===reads&&!busy)accept(data.group);
+    }catch(error){if(version===generation&&active?.id===groupId&&error.message!=='superseded')feedback(error.message);}
+    finally{publicSyncing=false;}
+  }
+  $('group-public-refresh').addEventListener('click',()=>{feedback('Checking public characters whose sync is due. Successful checks are cached for an hour.');syncPublic();});
+  setInterval(syncPublic,1500);
   $('group-create').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('create',{name:form.elements.name.value,kind:form.elements.kind.value,collection_focus:form.elements.collection_focus.value,...sharing(form)});accept(data.group,true);showInvite(data);await loadList();$('group-create-details').open=false;form.elements.name.value='';sharingFields($('group-create-sharing'));feedback('Group created. Send the invitation link to your friends.');});});
   $('group-sharing').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('sharing',{group_id:active.id,...sharing(form)});accept(data.group,true);feedback('Sharing choices saved.');});});
   $('group-focus-value').addEventListener('change',()=>{$('group-focus-form').dataset.dirty='true';});

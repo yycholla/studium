@@ -13,9 +13,11 @@ async function participant(account) {
   const context=await browser.newContext(),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await context.route('**/*',async route=>{
     const request=route.request(),url=new URL(request.url()),path=url.pathname;
+    if(url.origin==='https://ffxivcollect.com')return route.fulfill({headers:{'Access-Control-Allow-Origin':'*'},json:{id:54321,last_parsed:new Date().toISOString(),mounts:{public:true,count:0,ids:[]},minions:{public:false,count:1,ids:[999]}}});
     if(url.origin!==origin)return route.abort();
     if(path==='/api/auth/session')return route.fulfill({json:{configured:true,csrf_token:`csrf-${account}`,account:{display_name:account,selected_character_key:account,characters:f.db.prepare('SELECT persistent_key,lodestone_id,name,home_world FROM characters WHERE account_id=?').all(account)}}});
     if(path==='/api/field-notes/catalog') {const kind=url.searchParams.get('kind');return route.fulfill({json:{kind,items:kind==='mounts'?[{id:1,name:'Aithon',sources:[{type:'Trial',text:'The Bowl of Embers (Extreme)'}]},{id:2,name:'Nightmare',sources:[{type:'Trial',text:'The Bowl of Embers (Extreme)'},{type:'Trial',text:'The Navel (Extreme)'}]}]:kind==='minions'?[{id:1,name:'Fat Cat',sources:[{type:'Dungeon',text:'Minion duty'}]}]:[]}});}
+    if(path==='/api/groups/roster'){const {group_id}=JSON.parse(request.postData());const characters=[{lodestone_id:'54321',name:'Public Friend',home_world:'Mateus'}];f.db.prepare('INSERT OR REPLACE INTO group_roster_previews VALUES (?,?,?,?,?)').run(group_id,'a','fc',JSON.stringify(characters),Math.floor(Date.now()/1000));return route.fulfill({json:{roster:{characters,pages:1,page:1}}});}
     if(path.startsWith('/api/groups/')){
       const response=await f.req(account,path+url.search,{method:request.method(),headers:request.headers(),...(request.postData()?{body:request.postData()}:{})});
       return route.fulfill({status:response.status,headers:Object.fromEntries(response.headers),body:await response.text()});
@@ -74,11 +76,21 @@ try {
   await alice.waitForFunction(()=>document.querySelectorAll('.group-run').length===0);
   await bob.locator('#group-close summary').click();await bob.locator('#group-leave').click();await bob.locator('#group-empty').waitFor();
   assert.equal(f.db.prepare('SELECT COUNT(*) n FROM collection_members').get().n,1);
+  await alice.locator('#group-refresh').click();await alice.waitForFunction(()=>document.querySelectorAll('.group-member').length===1);
+  await alice.locator('#group-roster-form button').click();await alice.locator('#group-roster-results input').waitFor();
+  await alice.locator('#group-roster-results input').check();await alice.locator('#group-roster-add').click();
+  await alice.waitForFunction(()=>document.querySelector('#group-members').textContent.includes('Public FC import'));
+  await alice.waitForFunction(()=>document.querySelector('#group-results').textContent.includes('Public Friend — Not collected'));
+  assert.equal(f.db.prepare('SELECT COUNT(*) n FROM collection_members').get().n,1);
+  assert.equal(JSON.parse(f.db.prepare('SELECT payload FROM group_public_characters').get().payload).collections.minions.ids,null);
+  await alice.setViewportSize({width:320,height:1000});assert.equal(await alice.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'Public import overflow');
+  await alice.screenshot({path:'test-results/groups-public-import-320.png',fullPage:true});
+  await alice.getByRole('button',{name:'Remove public character',exact:true}).click();await alice.waitForFunction(()=>document.querySelectorAll('.group-member').length===1);
   if(process.argv.includes('--live-catalogs')) {
     const catalogs=await Promise.all(['mounts','minions','emotes','facewear'].map(async kind=>JSON.parse(await readFile(`dist/data/field-notes/${kind}.json`,'utf8'))));
     const member={id:'probe',character:{name:'Probe'},share_collections:true,share_wishlist:false,goals:null,sync:{status:'ready',checked_at:Date.now()/1000,snapshot:{source_updated_at:new Date().toISOString(),collections:Object.fromEntries(catalogs.map(c=>[c.kind,{visibility:'public',ids:[]}]))}}};
     const runs=StudiumGroupPlanner.compare(catalogs,[member]);assert.ok(runs.length>0,'Current provider catalogs must contain supported duty sources');
     console.log(`Live catalog matching verified: ${runs.length} duties across ${catalogs.reduce((sum,c)=>sum+c.items.length,0)} collectibles; source types: ${[...new Set(runs.map(r=>r.type))].join(', ')}.`);
   }
-  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, matching, revocation, leaving and six widths.');
+  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, matching, revocation, leaving, public import/CORS sync/removal and six widths.');
 } finally {await browser.close();for(const fn of cleanup)fn();}

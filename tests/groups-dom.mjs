@@ -11,7 +11,7 @@ const settle=async()=>{for(let i=0;i<20;i++)await tick();};
 const until=async predicate=>{const deadline=Date.now()+3000;while(!predicate()){assert.ok(Date.now()<deadline,'Timed out waiting for the UI');await delay(5);}};
 async function setup(t,f,{account='a',hash='',override}={}) {
   const dom=new JSDOM(html,{url:`${origin}/groups${hash}`,runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
-  const w=dom.window,d=w.document;let current=account;
+  const w=dom.window,d=w.document;let current=account;w.AbortController=AbortController;w.AbortSignal=AbortSignal;w.TextDecoder=TextDecoder;
   const session=()=>({configured:true,csrf_token:`csrf-${current}`,account:current?{display_name:current,selected_character_key:current,characters:f.db.prepare('SELECT persistent_key,lodestone_id,name,home_world FROM characters WHERE account_id=?').all(current)}:null});
   w.fetch=async(path,init={})=>{
     const custom=await override?.(path,init);if(custom)return custom;
@@ -79,4 +79,43 @@ test('saved mount focus initializes the view; personal category choices survive 
   assert.match(d.querySelector('#group-collection-default').textContent,/Emotes/);
   category.value='group';category.dispatchEvent(new w.Event('change'));assert.equal(d.querySelectorAll('.group-run').length,0);
   d.querySelector('[data-group]').click();await settle();assert.equal(d.querySelector('#group-focus-value').value,'emotes');
+});
+
+test('owner imports selected public characters and public progress enters the focused comparison',async t=>{
+ const f=fixture(t),made=await create(f,{collection_focus:'mounts'}),group_id=made.group.id;
+ const characters=[{lodestone_id:'54321',name:'Public Friend',home_world:'Mateus'}];
+ f.db.prepare('INSERT INTO group_roster_previews VALUES (?,?,?,?,?)').run(group_id,'a','fc',JSON.stringify(characters),Math.floor(Date.now()/1000));
+ const {d,w,submit}=await setup(t,f,{override:path=>path==='/api/groups/roster'?Response.json({roster:{characters,pages:2,page:1}}):null});
+ d.querySelector('[data-group]').click();await until(()=>!d.querySelector('#group-detail').hidden&&!d.querySelector('#group-reload').disabled);
+ assert.equal(d.querySelector('#group-import').hidden,false);
+ await submit(d.querySelector('#group-roster-form'));
+ assert.equal(d.querySelector('#group-roster-next').hidden,false);
+ const check=d.querySelector('#group-roster-results input');check.checked=true;check.dispatchEvent(new w.Event('change'));
+ d.querySelector('#group-roster-add').click();await until(()=>d.querySelectorAll('.group-member').length===2&&!d.querySelector('#group-reload').disabled);
+ assert.match(d.querySelector('#group-members').textContent,/Public FC import · no group access/);
+ const row=f.db.prepare('SELECT id FROM group_public_characters').get();
+ await body(await f.post('a','public-sync',{group_id,public_id:row.id,profile:{id:54321,last_parsed:new Date().toISOString(),mounts:{public:true,count:0,ids:[]},minions:{public:false,count:1,ids:[999]}}}));
+ d.querySelector('#group-refresh').click();await until(()=>d.querySelectorAll('.group-run').length===1);
+ assert.match(d.querySelector('.group-benefits').textContent,/Public Friend — Not collected/);
+ assert.equal(d.querySelectorAll('#group-members input:checked').length,2);
+ const remove=[...d.querySelectorAll('#group-members button')].find(b=>b.textContent==='Remove public character');remove.click();
+ await until(()=>d.querySelectorAll('.group-member').length===1);assert.equal(d.querySelectorAll('.group-run').length,0);
+ await body(await f.post('b','join',{invite:invite(made),...choices('b')}));
+ const other=await setup(t,f,{account:'b'});other.d.querySelector('[data-group]').click();await until(()=>!other.d.querySelector('#group-detail').hidden);
+ assert.equal(other.d.querySelector('#group-import').hidden,true);
+});
+
+test('public collections auto-sync through CORS and strip private fields before reporting',async t=>{
+ const f=fixture(t),made=await create(f),group_id=made.group.id;
+ f.db.prepare('INSERT INTO group_public_characters (id,group_id,lodestone_id,name,home_world,source) VALUES (?,?,?,?,?,?)').run('public-test',group_id,'54321','Friend','Mateus','friends');
+ let posted,providerCalls=0;
+ const {d}=await setup(t,f,{override:(path,init)=>{
+   if(path.startsWith('https://ffxivcollect.com/')){providerCalls++;assert.equal(init.credentials,'omit');assert.equal(init.redirect,'error');return Response.json({id:54321,last_parsed:new Date().toISOString(),mounts:{public:true,count:0,ids:[]},minions:{public:false,count:1,ids:[999]}});}
+   if(path==='/api/groups/public-sync')posted=JSON.parse(init.body);
+   return null;
+ }});
+ d.querySelector('[data-group]').click();await until(()=>d.querySelector('#group-members').textContent.includes('Public friends import'));
+ await until(()=>f.db.prepare('SELECT status FROM group_public_characters').get().status==='ready');
+ assert.equal(providerCalls,1);assert.equal(posted.profile.minions.ids,null);assert.equal(posted.public_id,'public-test');
+ await until(()=>d.querySelector('#group-results').textContent.includes('Friend — Not collected'));
 });

@@ -24,6 +24,7 @@ const config :Workerd.Config = (
         (name = "test.mjs", esModule = ${source('./fixtures/auth-runtime.mjs')}),
         (name = "worker.mjs", esModule = ${source('../worker/index.mjs')}),
         (name = "field-notes.mjs", esModule = ${source('../worker/field-notes.mjs')}),
+        (name = "public-rosters.mjs", esModule = ${source('../worker/public-rosters.mjs')}),
         (name = "groups.mjs", esModule = ${source('../worker/groups.mjs')})
       ]
     )),

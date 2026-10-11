@@ -1,3 +1,4 @@
+import { publicCharacters, publicAction, RosterError } from './public-rosters.mjs';
 import { KINDS } from './field-notes.mjs';
 const collectionFocus = value => ['all', ...KINDS].includes(value);
 const now = () => Math.floor(Date.now() / 1000);
@@ -40,12 +41,12 @@ async function detail(env, group, accountId) {
       sync:linked && row.share_collections ? {status:row.status || 'pending',checked_at:row.checked_at,snapshot} : null,
       goals:linked && row.share_wishlist ? goals.filter(g=>g.member_id===row.id).map(({kind,item_id})=>({kind,item_id})) : null};
   });
-  return {...metadata(group),is_owner:group.owner_id===accountId,members};
+  return {...metadata(group),is_owner:group.owner_id===accountId,members:[...members,...await publicCharacters(env,group.id)]};
 }
 
-export async function handleGroups(request, env, current, config) {
+export async function handleGroups(request, env, current, config, fetcher=fetch) {
   const url = new URL(request.url), action = url.pathname.slice('/api/groups/'.length);
-  const methods = {list:'GET',detail:'GET',preview:'POST',create:'POST',join:'POST',sharing:'POST',focus:'POST',invite:'POST',remove:'POST',leave:'POST',delete:'POST'};
+  const methods = {list:'GET',detail:'GET',preview:'POST',create:'POST',join:'POST',sharing:'POST',focus:'POST',invite:'POST',remove:'POST',leave:'POST',delete:'POST',roster:'POST','public-add':'POST','public-remove':'POST','public-sync':'POST'};
   if (!Object.hasOwn(methods, action)) return reply({error:'Not found.'},404);
   if (request.method !== methods[action]) return reply({error:`Use ${methods[action]}.`},405);
   if (!current) return reply({error:'Sign in to use collection groups.'},401);
@@ -54,12 +55,13 @@ export async function handleGroups(request, env, current, config) {
     if (request.headers.get('Origin') !== config.origin || request.headers.get('X-CSRF-Token') !== current.csrf_token) return reply({error:'Refresh this page and try again.'},403);
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply({error:'Expected JSON.'},415);
     const body = await request.text();
-    if (body.length > 4096) return reply({error:'Request too large.'},413);
+    if (body.length > (action==='public-sync'?300000:4096)) return reply({error:'Request too large.'},413);
     try { input = JSON.parse(body); } catch { return reply({error:'Invalid JSON.'},400); }
     if (!input || typeof input !== 'object' || Array.isArray(input)) return reply({error:'Invalid request.'},400);
   }
   // Expired parties become inaccessible immediately; clean their records on group activity.
   await stmt(env,'DELETE FROM collection_groups WHERE expires_at IS NOT NULL AND expires_at <= ?',now()).run();
+  await stmt(env,'DELETE FROM group_roster_previews WHERE fetched_at<=?',now()-900).run();
   const accountId = current.account_id;
   if (action === 'list') {
     const {results} = await stmt(env,`SELECT g.id,g.name,g.kind,g.collection_focus,g.expires_at, g.owner_id=? AS is_owner,
@@ -120,6 +122,7 @@ export async function handleGroups(request, env, current, config) {
       const updated = await stmt(env,`UPDATE OR IGNORE collection_members SET lodestone_id=?,share_collections=?,share_wishlist=? WHERE group_id=? AND account_id=? RETURNING id`,character.lodestone_id,...flags,group.id,accountId).first();
       if (!updated) return reply({error:'Sharing could not be saved. Refresh and try again.'},409);
     }
+    await stmt(env,'DELETE FROM group_public_characters WHERE group_id=? AND lodestone_id=?',group.id,character.lodestone_id).run();
     return reply({group:await detail(env,group,accountId)});
   }
   if (action === 'leave') {
@@ -128,6 +131,16 @@ export async function handleGroups(request, env, current, config) {
     return reply({ok:true});
   }
   if (group.owner_id !== accountId) return reply({error:'Only the group owner can do that.'},403);
+  if (['roster','public-add','public-remove','public-sync'].includes(action)) {
+    try {
+      const result=await publicAction(action,input,env,group,accountId,fetcher);
+      return reply(result.roster?result:{group:await detail(env,group,accountId)});
+    } catch(error) {
+      if(error instanceof RosterError)return reply({error:error.message},error.status);
+      console.error(JSON.stringify({event:'studium_roster_failure',action}));
+      return reply({error:'The public roster service is unavailable. Try again shortly.'},503);
+    }
+  }
   if (action === 'focus') {
     if (!collectionFocus(input.collection_focus)) return reply({error:'Choose a supported collection focus.'},400);
     const updated = await stmt(env,'UPDATE collection_groups SET collection_focus=? WHERE id=? AND owner_id=? RETURNING *',input.collection_focus,group.id,accountId).first();
