@@ -68,14 +68,15 @@ test('favorites persist, reject unknown IDs, and have a useful empty state', () 
   } finally { app.close(); }
 });
 
-test('copy preserves raw Unicode and updates the preview', async () => {
+test('copy preserves raw Unicode and highlights the expression', async () => {
   const app = setup();
   try {
     app.click('[data-id="joy"] [data-action="copy"]');
     await settle();
     assert.deepEqual(app.writes, ['(^ω^)']);
-    assert.equal(app.doc.querySelector('#preview-text').textContent, '(^ω^)');
-    app.click('#copy-preview');
+    assert.equal(app.doc.querySelector('[data-id="joy"]').dataset.selected, 'true');
+    assert.equal(app.doc.querySelector('#preview-text'), null);
+    app.click('[data-id="joy"] [data-action="copy"]');
     await settle();
     assert.deepEqual(app.writes, ['(^ω^)', '(^ω^)']);
     assert.equal(app.doc.querySelector('#toast').hidden, false);
@@ -116,5 +117,52 @@ test('URL state and keyboard shortcuts restore and clear search', () => {
     app.doc.activeElement.dispatchEvent(new app.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     assert.equal(app.doc.querySelector('#search').value, '');
     assert.equal(app.doc.querySelector('#ascii-only').checked, true);
+  } finally { app.close(); }
+});
+
+
+test('grid/list preference survives initialization, preserves filters and handles blocked storage', () => {
+  for (const blockedStorage of [false, true]) {
+    const app = setup({ blockedStorage });
+    try {
+      app.search('cat');
+      const before = app.shown().map((card) => card.dataset.id);
+      app.click('[data-view="list"]');
+      assert.equal(app.doc.querySelector('#results').dataset.view, 'list');
+      assert.equal(app.doc.querySelector('button[data-view="list"]').getAttribute('aria-pressed'), 'true');
+      assert.deepEqual(app.shown().map((card) => card.dataset.id), before);
+      if (!blockedStorage) {
+        assert.equal(app.window.localStorage.getItem('xiv-chatbook:view:v1'), 'list');
+        app.window.localStorage.setItem('xiv-chatbook:view:v1', 'grid');
+        app.window.dispatchEvent(new app.window.StorageEvent('storage', { key: 'xiv-chatbook:view:v1', newValue: 'grid' }));
+        assert.equal(app.doc.querySelector('#results').dataset.view, 'grid');
+      }
+      app.click('[data-view="grid"]');
+      assert.equal(app.doc.querySelector('#results').dataset.view, 'grid');
+      assert.deepEqual(app.shown().map((card) => card.dataset.id), before);
+    } finally { app.close(); }
+  }
+});
+
+test('view is restored on reload and favorite icon remains accessible', () => {
+  const app = setup();
+  try {
+    app.click('[data-view="list"]');
+    app.click('[data-id="wave"] [data-action="favorite"]');
+    const favorite = app.doc.querySelector('[data-id="wave"] [data-action="favorite"]');
+    assert.equal(favorite.getAttribute('aria-label'), 'Unfavorite Hello there');
+    assert.equal(favorite.querySelector('use').getAttribute('href'), '/assets/icons.svg#star-fill');
+    // A separate window starts from the persisted preference and favorite state.
+    const reloaded = new JSDOM(html, { url: 'https://studium.test/chatpendium', runScripts: 'outside-only' });
+    try {
+      reloaded.window.localStorage.setItem('xiv-chatbook:view:v1', app.window.localStorage.getItem('xiv-chatbook:view:v1'));
+      reloaded.window.localStorage.setItem('xiv-chatbook:favorites:v1', app.window.localStorage.getItem('xiv-chatbook:favorites:v1'));
+      reloaded.window.eval(script);
+      assert.equal(reloaded.window.document.querySelector('#results').dataset.view, 'list');
+      assert.equal(reloaded.window.document.querySelector('#favorite-count').textContent, '1');
+      reloaded.window.dispatchEvent(new reloaded.window.StorageEvent('storage', { key: null }));
+      assert.equal(reloaded.window.document.querySelector('#results').dataset.view, 'grid');
+      assert.equal(reloaded.window.document.querySelector('#favorite-count').textContent, '0');
+    } finally { reloaded.window.close(); }
   } finally { app.close(); }
 });

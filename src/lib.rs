@@ -21,6 +21,11 @@ pub fn router() -> Router {
         .route(styles)
         .route(script)
         .route(account_script)
+        .route(icon_sprite)
+        .route(botanical_sprig)
+        .route(botanical_branch)
+        .route(font_regular)
+        .route(font_semibold)
         .route(catalog_json)
         .route(plugin_catalog)
         .route(health)
@@ -61,4 +66,44 @@ async fn plugin_catalog() -> Result<Json<chatpendium_core::Catalog>> {
 #[route(GET "/healthz")]
 async fn health() -> Result<&'static str> {
     Ok("ok")
+}
+
+#[route(GET "/assets/icons.svg")]
+async fn icon_sprite() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "image/svg+xml")],
+        include_bytes!("../assets/icons.svg"),
+    ))
+}
+
+#[route(GET "/assets/botanical/sprig.webp")]
+async fn botanical_sprig() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "image/webp")],
+        include_bytes!("../assets/botanical/sprig.webp"),
+    ))
+}
+
+#[route(GET "/assets/botanical/branch.webp")]
+async fn botanical_branch() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "image/webp")],
+        include_bytes!("../assets/botanical/branch.webp"),
+    ))
+}
+
+#[route(GET "/assets/fonts/source-sans-3-400.ttf")]
+async fn font_regular() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "font/ttf")],
+        include_bytes!("../assets/fonts/source-sans-3-400.ttf"),
+    ))
+}
+
+#[route(GET "/assets/fonts/source-sans-3-600.ttf")]
+async fn font_semibold() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "font/ttf")],
+        include_bytes!("../assets/fonts/source-sans-3-600.ttf"),
+    ))
 }
