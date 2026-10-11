@@ -163,9 +163,28 @@ pub(crate) async fn site_header(active: &'static str) -> Result {
                 <nav aria-label="Main navigation">
                     <a href="/" class=(if active == "hub" { "nav-current" } else { "" }) aria-current=(if active == "hub" { Some("page") } else { None })>"All tools"</a>
                     <a href="/chatpendium" class=(if active == "chatpendium" { "nav-current" } else { "" }) aria-current=(if active == "chatpendium" { Some("page") } else { None })>"Chatpendium"</a>
-                    <a id="account-link" href="/account" class=(if active == "account" { "nav-current" } else { "" }) aria-current=(if active == "account" { Some("page") } else { None })>"Account"</a>
                 </nav>
-                <span class="header-note">"An FFXIV companion."</span>
+                <div class="header-account" id="header-account">
+                    <a id="account-link" class="header-account-guest" href="/account" aria-current=(if active == "account" { Some("page") } else { None })>glyph(name: "user-circle")<span id="header-guest-label">"Account"</span></a>
+                    <button type="button" id="header-account-trigger" class="header-account-trigger" aria-expanded="false" aria-controls="header-account-menu" hidden="hidden">
+                        <span id="header-character-avatar" class="character-avatar"></span>
+                        <span class="header-account-copy"><strong id="header-character-name"></strong><span id="header-character-world"></span></span>
+                        glyph(name: "caret-down")
+                    </button>
+                    <section class="header-account-menu" id="header-account-menu" aria-label="Account and characters" hidden="hidden">
+                        <div class="account-menu-heading"><p class="eyebrow">"YOUR STUDIUM"</p><p id="header-account-name"></p></div>
+                        <p class="account-menu-label" id="header-character-label">"Choose your character"</p>
+                        <div id="header-character-list" class="header-character-list" role="group" aria-labelledby="header-character-label"></div>
+                        <p id="header-no-characters" class="account-menu-empty" hidden="hidden">"No characters linked yet. Refresh characters to choose which ones to share."</p>
+                        <p id="header-menu-status" class="account-menu-status" hidden="hidden"></p>
+                        <div class="account-menu-actions">
+                            <a href="/account" aria-current=(if active == "account" { Some("page") } else { None })>glyph(name: "user-circle")"Manage account"</a>
+                            <a href="/auth/login">glyph(name: "arrows-clockwise")"Refresh characters"</a>
+                            <button id="header-account-logout" type="button">glyph(name: "sign-out")"Sign out"</button>
+                        </div>
+                    </section>
+                    <p id="header-account-feedback" class="sr-only" role="status" aria-live="polite"></p>
+                </div>
             </div>
         </header>
     }

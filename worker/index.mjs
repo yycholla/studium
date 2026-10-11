@@ -47,6 +47,15 @@ async function session(request, env, config) {
   return stmt(env, 'SELECT * FROM sessions WHERE token_hash = ? AND expires_at > ?', await digest(raw), now()).first();
 }
 function validString(value, max = 200) { return typeof value === 'string' && value.length > 0 && value.length <= max; }
+function characterImage(value) {
+  if (!validString(value, 2048)) return null;
+  try {
+    const url = new URL(value);
+    const hosts = ['img2.finalfantasyxiv.com', 'img.finalfantasyxiv.com', 'lds-img.finalfantasyxiv.com'];
+    return url.protocol === 'https:' && hosts.includes(url.hostname) && !url.port && !url.username && !url.password
+      ? url.href : null;
+  } catch { return null; }
+}
 function normalizeProfile(user, input) {
   if (!validString(user?.id, 128) || !validString(user?.display_name) || !Array.isArray(input) || input.length > 100) {
     throw new Error('Unexpected provider response');
@@ -60,7 +69,8 @@ function normalizeProfile(user, input) {
     }
     keys.add(c.persistent_key);
     return { persistent_key: c.persistent_key, lodestone_id: id, name: c.name,
-      home_world: c.home_world, data_center: c.data_center, verified_at: c.verified_at };
+      home_world: c.home_world, data_center: c.data_center, verified_at: c.verified_at,
+      avatar_url: characterImage(c.avatar_url), portrait_url: characterImage(c.portrait_url) };
   });
   return { id: user.id, display_name: user.display_name, characters };
 }
@@ -102,7 +112,7 @@ async function providerJson(fetcher, stage, path, init = {}) {
 async function snapshot(env, current) {
   const account = await stmt(env, 'SELECT * FROM accounts WHERE id = ?', current.account_id).first();
   if (!account) return null;
-  const { results } = await stmt(env, 'SELECT persistent_key, lodestone_id, name, home_world, data_center, verified_at FROM characters WHERE account_id = ? ORDER BY name', account.id).all();
+  const { results } = await stmt(env, 'SELECT persistent_key, lodestone_id, name, home_world, data_center, verified_at, avatar_url, portrait_url FROM characters WHERE account_id = ? ORDER BY name', account.id).all();
   return { display_name: account.display_name, characters: results,
     selected_character_key: account.selected_character_key, linked_at: account.updated_at };
 }
@@ -145,8 +155,8 @@ async function callback(request, env, config, fetcher) {
     const statements = [
       stmt(env, 'INSERT INTO accounts (id, display_name, updated_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET display_name = excluded.display_name, updated_at = excluded.updated_at', profile.id, profile.display_name, timestamp),
       stmt(env, 'DELETE FROM characters WHERE account_id = ?', profile.id),
-      ...profile.characters.map(c => stmt(env, 'INSERT INTO characters (account_id, persistent_key, lodestone_id, name, home_world, data_center, verified_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        profile.id, c.persistent_key, c.lodestone_id, c.name, c.home_world, c.data_center, c.verified_at)),
+      ...profile.characters.map(c => stmt(env, 'INSERT INTO characters (account_id, persistent_key, lodestone_id, name, home_world, data_center, verified_at, avatar_url, portrait_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        profile.id, c.persistent_key, c.lodestone_id, c.name, c.home_world, c.data_center, c.verified_at, c.avatar_url, c.portrait_url)),
       stmt(env, 'UPDATE accounts SET selected_character_key = ? WHERE id = ? AND (selected_character_key IS NULL OR selected_character_key NOT IN (SELECT persistent_key FROM characters WHERE account_id = ?))',
         profile.characters[0]?.persistent_key ?? null, profile.id, profile.id),
       stmt(env, 'INSERT INTO sessions (token_hash, account_id, csrf_token, expires_at) VALUES (?, ?, ?, ?)', await digest(raw), profile.id, randomToken(), timestamp + SESSION_SECONDS),

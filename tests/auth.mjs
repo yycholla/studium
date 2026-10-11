@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import worker, { handle } from '../worker/index.mjs';
@@ -13,7 +13,9 @@ function fixture(t) {
   const logs = [];
   t.mock.method(console, 'error', line => logs.push(JSON.parse(line)));
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../migrations/0001_accounts.sql', import.meta.url), 'utf8'));
+  for (const file of readdirSync(new URL('../migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort()) {
+    db.exec(readFileSync(new URL(`../migrations/${file}`, import.meta.url), 'utf8'));
+  }
   t.after(() => db.close());
   const wrap = (sql, args = []) => ({
     bind: (...values) => wrap(sql, values),
@@ -247,4 +249,40 @@ test('unconfigured auth and failed databases leave static tools usable', async t
   f.env.XIVAUTH_CLIENT_SECRET = 'test'; f.env.DB = { prepare() { throw new Error('private details'); } };
   const response = await worker.fetch(new Request(`${origin}/auth/login`), f.env);
   assert.equal(response.status, 503); assert.ok(!(await response.text()).includes('private details'));
+});
+
+
+test('provider portraits are retained, refreshed and restricted to official HTTPS image hosts', async t => {
+  const f = fixture(t);
+  const avatar = 'https://img2.finalfantasyxiv.com/f/headshot.jpg?123';
+  const portrait = 'https://img2.finalfantasyxiv.com/f/portrait.jpg?123';
+  f.setCharacters([character('a', { avatar_url: avatar, portrait_url: portrait }), character('b')]);
+  let signed = await f.login();
+  assert.equal(signed.data.account.characters[0].avatar_url, avatar);
+  assert.equal(signed.data.account.characters[0].portrait_url, portrait);
+  assert.equal(signed.data.account.characters[1].avatar_url, null);
+  await f.post('/api/auth/character', signed, { persistent_key: 'b' });
+  for (const unsafe of ['javascript:alert(1)', 'http://img2.finalfantasyxiv.com/f/a.jpg',
+    'https://img2.finalfantasyxiv.com.evil.test/a', 'https://private@img2.finalfantasyxiv.com/a',
+    'https://img2.finalfantasyxiv.com:8443/a', 'not-a-url']) {
+    f.setCharacters([character('a', { avatar_url: unsafe, portrait_url: unsafe }), character('b', { avatar_url: avatar })]);
+    signed = await f.login(signed.cookie);
+    assert.equal(signed.data.account.selected_character_key, 'b');
+    assert.equal(signed.data.account.characters[0].avatar_url, null);
+    assert.equal(signed.data.account.characters[0].portrait_url, null);
+    assert.equal(signed.data.account.characters[1].avatar_url, avatar);
+  }
+});
+
+test('portrait migration preserves pre-existing characters with nullable images', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(readFileSync(new URL('../migrations/0001_accounts.sql', import.meta.url), 'utf8'));
+    db.exec("INSERT INTO accounts (id, display_name, updated_at) VALUES ('old', 'Existing user', 1)");
+    db.exec("INSERT INTO characters (account_id, persistent_key, lodestone_id, name, home_world, data_center, verified_at) VALUES ('old', 'old-character', '123', 'Existing Character', 'Balmung', 'Crystal', '2026-10-01')");
+    db.exec(readFileSync(new URL('../migrations/0002_character_images.sql', import.meta.url), 'utf8'));
+    const row = db.prepare('SELECT * FROM characters').get();
+    assert.equal(row.name, 'Existing Character');
+    assert.equal(row.avatar_url, null); assert.equal(row.portrait_url, null);
+  } finally { db.close(); }
 });

@@ -31,7 +31,7 @@ Below 1000px the controls wrap and grid uses two columns. Below 760px categories
 
 ## Components and behavior
 
-- Shared header: sprig mark, Studium wordmark/byline, three navigation links, thin active underline.
+- Shared header: sprig mark, Studium wordmark/byline, two navigation links, thin active underline, and a portrait account control at the top right.
 - Sidebar: library icons, a clearly selected category, botanical divider, favorite count, short anonymous-use note.
 - Catalog: search, ASCII filter, named Grid/List buttons, result count, expression cards, and Show more.
 - Grid: glanceable faces, name and category, favorite and copy actions.
@@ -64,3 +64,10 @@ The Chatpendium tile on All tools keeps the original playful expression arrangem
 Future tools should reuse the header, typography, surfaces, action styles, and compact footer. Give each tool a plain name and explain its actual use in one sentence. Keep decorative foliage near page margins and away from interactive controls. The home, account, and policy pages inherit this baseline without changing their existing service behavior.
 
 See [rendered QA](../design-qa.md) for implementation captures and intentional functional differences from the concept.
+
+
+## Character account control
+
+The top-right control uses a circular character headshot with a fine brass rim, selected name, world/data center, and library caret. Its forest dropdown lists linked characters with portraits and a selected check; account management, refresh, and sign-out sit below a divider. Mobile keeps the portrait and caret while the accessible label retains the full identity. Without a session it becomes Sign in; without configured auth it links to Account. Missing images use initials, and accounts with no linked characters retain their account menu and refresh action.
+
+Portraits are user-authorized XIVAuth data, not generated decorative assets. The provider's character serializer exposes `avatar_url` and `portrait_url`; both are retained as nullable fields after validating official HTTPS CDN hosts. Header images use the headshot, with full portrait as a fallback. The source contract was inspected in [XIVAuth](https://github.com/XIVAuth/XIVAuth/tree/4bc2440684989cf8e56bc1169afcf5bd3a200172), `app/views/api/v1/characters/_ffxiv_character.json.jbuilder`. Browser QA uses a public headshot from the provider's `valid_withcode.json` test fixture plus a sample character without an image; those demo records are not shipped in Studium. The existing privacy page now documents stored image URLs and direct CDN requests.

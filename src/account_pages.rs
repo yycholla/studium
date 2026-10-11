@@ -60,18 +60,18 @@ pub async fn privacy() -> Result {
     view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Privacy · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"></head>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Privacy · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"><script src="/assets/account.js" defer="defer"></script></head>
             <body>
                 crate::pages::site_header(active: "")
                 <main class="container policy-main">
                     <p class="eyebrow">"THE STUDIUM"</p><h1>"Privacy"</h1><p>"Updated October 10, 2026."</p>
                     <h2>"What we store"</h2>
-                    <p>"When you sign in, Studium stores your XIVAuth user ID and display name, the verified characters you authorize, your selected character, and when the information was refreshed. Character records include the XIVAuth persistent key, Lodestone ID, name, home world, data center, and verification date. We use these records to recognize your account and provide character selection."</p>
+                    <p>"When you sign in, Studium stores your XIVAuth user ID and display name, the verified characters you authorize, your selected character, and when the information was refreshed. Character records include the XIVAuth persistent key, Lodestone ID, name, home world, data center, verification date, and avatar and portrait URLs. We use these records to recognize your account and provide character selection."</p>
                     <p>"Studium does not request your email address, linked social accounts, Square Enix password, inventory, or chat history. XIVAuth access tokens are used on the server during sign-in, then discarded; they are not stored in your browser or our database."</p>
                     <h2>"Cookies and local storage"</h2>
                     <p>"Essential cookies protect the sign-in flow and keep you signed in. Sign-in requests expire after ten minutes and sessions after eight hours. Chatpendium favorites and your grid/list view preference are stored separately in this browser and do not sync with your account."</p>
                     <h2>"Services involved"</h2>
-                    <p>"Cloudflare hosts the website and account database and processes network requests. XIVAuth provides authentication and the character information you choose to share, under its own "<a href="https://xivauth.net/legal/privacy">"privacy policy"</a>". These providers may process request metadata under their own policies. Studium does not add advertising or analytics trackers."</p>
+                    <p>"Cloudflare hosts the website and account database and processes network requests. XIVAuth provides authentication and the character information you choose to share, under its own "<a href="https://xivauth.net/legal/privacy">"privacy policy"</a>". These providers may process request metadata under their own policies. Character portraits load directly from Square Enix’s image servers without sending a page referrer. Studium does not add advertising or analytics trackers."</p>
                     <h2>"Your choices"</h2>
                     <p>"Use the tools without signing in, change shared characters through XIVAuth, or refresh the linked characters from your account page. Removing your Studium account deletes its profile, characters, and sessions from the active database. Hosting-provider backups may retain deleted data according to their retention policies. Signing out ends this browser's session; it does not sign you out of XIVAuth."</p>
                     <p>"Profile and character records remain until you remove your account. Expired sessions and unfinished sign-in requests are deleted during subsequent sign-ins. Character information is a snapshot from your last sign-in and is not monitored continuously."</p>
@@ -89,7 +89,7 @@ pub async fn terms() -> Result {
     view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Terms · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"></head>
+            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>"Terms · The Studium"</title>crate::pages::favicon_links()<link rel="stylesheet" href="/assets/app.css"><script src="/assets/account.js" defer="defer"></script></head>
             <body>
                 crate::pages::site_header(active: "")
                 <main class="container policy-main">

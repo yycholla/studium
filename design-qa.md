@@ -69,3 +69,18 @@ Added the generated simplified sprig favicon in a 64px PNG plus an ICO containin
 Restored the Chatpendium tile's original angled/staggered expression arrangement, distinct gold/sage/rose accents, and added the existing botanical branch as a quiet backdrop. The [updated All tools browser capture](docs/design/implementation-hub.webp) is 1363 × 936 pixels at a 1363 × 936 CSS viewport, density 1. Also inspected the hub at 390px: no horizontal page overflow, and the bounding boxes of all three expressions remain inside the illustration. The tile still links to Chatpendium.
 
 Reran all 13 Rust tests (including favicon response types/signatures), formatting, static export, and whitespace checks. Final result: passed
+
+
+## Character portrait and account menu
+
+Result: passed. The approved botanical reference remains the baseline. The user-authorized change replaces the header note and central Account link with a top-right character portrait control; the sidebar, grid/list layouts, favicon, and expressive tool tile remain consistent with the selected direction. Added Phosphor library symbols without modifying their paths.
+
+The [desktop capture](docs/design/implementation-header-character.webp) shows the actual exported All tools page at 1363 × 936 CSS pixels, density 1, with the character menu open. The [mobile capture](docs/design/implementation-header-character-mobile.webp) shows the actual Chatpendium page inside a 320 × 740 CSS viewport; the outer QA frame was cropped away. Captures use an isolated development account fixture with a public XIVAuth test headshot and a sample character without an image. They demonstrate signed-in UI, not a real production sign-in. No fixture adapter or sample account data is shipped.
+
+Compared the approved baseline and current rendering at full page and focused header scales. Brass portrait rims, forest menu surfaces, sage selection, editorial type, and licensed line icons fit the existing design. The new menu stays above decorative foliage. Fixed a P2 narrow-screen issue: the portrait originally wrapped below the wordmark at 320px; a compact wordmark now keeps both in the top row. No remaining P0–P2 visual findings.
+
+Browser checks: real portrait loaded at 256px natural width, selection updated the header and returned focus, ArrowDown opened the picker, Escape dismissed it, sign-out removed names and portraits and exposed Sign in, and account-page portraits rendered. At 320px and 768px, document scroll width equals client width and the menu stays inside the viewport. Application browser warnings/errors: none.
+
+Validation: 13 Rust tests; 15 auth/SQLite tests including migration preservation and URL validation; Workers runtime callback/redirect tests; 4 deployment tests; 8 catalog DOM tests; 9 account/header DOM tests including hostile/missing/broken portraits, CSRF selection, duplicate submission, empty characters, failed selection, keyboard dismissal, sign-out, and expired-session cleanup. Formatting, JavaScript syntax, static export, whitespace checks, and Wrangler deployment dry run passed. Local tests use mock provider responses; live OAuth consent and production D1 were not exercised.
+
+Deployment requirement: apply migration 0002 before the updated Worker (the existing main-branch workflow applies pending migrations). Existing records remain valid and receive portraits on next sign-in or Refresh characters. No new OAuth scopes or stored provider tokens.
