@@ -48,6 +48,14 @@ npx wrangler@4 secret put XIVAUTH_CLIENT_SECRET
 
 The site uses a fixed `SITE_ORIGIN` to prevent redirect-host injection. Sign in through `https://studium.yycholla.com`; the `workers.dev` URL is not an alternate callback. Auth routes run through the Worker; static assets are served through Cloudflare's assets service. D1 and Worker requests count against their respective plan allowances.
 
+## Character portraits
+
+Apply `0002_character_images.sql` before deploying the updated Worker. The GitHub Actions deployment applies pending migrations automatically. It adds nullable avatar and portrait URL columns without changing existing characters or sessions. Existing users see initials until their next sign-in or **Refresh characters**; no retained token is needed for backfill.
+
+The header displays the selected character's headshot and name/world. The dropdown lists linked characters and provides account management, refresh, and sign-out. The account page uses the same portraits. Missing or failed images fall back to initials. Character selection continues through the existing account-scoped, CSRF-protected endpoint.
+
+Only HTTPS image URLs on Square Enix's `img2.finalfantasyxiv.com`, `img.finalfantasyxiv.com`, or `lds-img.finalfantasyxiv.com` hosts are accepted. Images load without a referrer. The Worker does not proxy images or persist provider tokens. The portrait fields were verified against XIVAuth's character serializer at commit `4bc2440684989cf8e56bc1169afcf5bd3a200172`; the current scopes already expose `avatar_url` and `portrait_url`.
+
 ## Verify the real service
 
 1. Open `/privacy` and `/terms`, then `/account` on the production domain.

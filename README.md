@@ -90,7 +90,7 @@ The exported hub is `dist/index.html`; Chatpendium is `dist/chatpendium/index.ht
 
 ### XIVAuth accounts and character linking
 
-The `/account` page signs in through XIVAuth, lists authorized verified characters, and lets you select a character, refresh the list, sign out, or remove your Studium profile. Privacy and terms pages are available at `/privacy` and `/terms`.
+The top-right header shows the selected character’s portrait, name, and world. Its menu switches characters and provides account management, refresh, and sign-out on every page. The `/account` page signs in through XIVAuth, lists authorized verified characters, and lets you select a character, refresh the list, sign out, or remove your Studium profile. Privacy and terms pages are available at `/privacy` and `/terms`.
 
 Follow [the XIVAuth setup guide](deploy/XIVAUTH.md) to create an OAuth client, bind a D1 database, and add the client secret securely with Wrangler. The App ID is not the OAuth client ID. Until these are configured, sign-in is unavailable and Chatpendium remains usable anonymously. No live OAuth flow has been verified by the local test suite.
 
