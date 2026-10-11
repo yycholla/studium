@@ -4,8 +4,12 @@ const cards = [...document.querySelectorAll('.expression-card')];
 const search = $('#search');
 const asciiOnly = $('#ascii-only');
 const favoriteFilter = $('#favorites-filter');
+const results = $('#results');
+const viewButtons = [...document.querySelectorAll('.view-toggle [data-view]')];
 const knownIds = new Set(cards.map((card) => card.dataset.id));
 const storageKey = 'xiv-chatbook:favorites:v1';
+const viewStorageKey = 'xiv-chatbook:view:v1';
+let view = 'grid';
 let favorites = new Set();
 let category = 'all';
 let favoritesOnly = false;
@@ -16,6 +20,19 @@ try {
   const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
   if (Array.isArray(saved)) favorites = new Set(saved.filter((id) => knownIds.has(id)));
 } catch { /* Storage can be unavailable; favorites still work for this session. */ }
+
+try { if (localStorage.getItem(viewStorageKey) === 'list') view = 'list'; }
+catch { /* View switching remains available without storage. */ }
+
+function setView(next, { save = true } = {}) {
+  view = next === 'list' ? 'list' : 'grid';
+  results.dataset.view = view;
+  for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === view));
+  if (save) {
+    try { localStorage.setItem(viewStorageKey, view); }
+    catch { /* Keep the preference for this visit. */ }
+  }
+}
 
 function notify(message) {
   clearTimeout(toastTimer);
@@ -36,7 +53,7 @@ function updateFavorites() {
     const saved = favorites.has(card.dataset.id);
     button.setAttribute('aria-pressed', String(saved));
     button.setAttribute('aria-label', `${saved ? 'Unfavorite' : 'Favorite'} ${card.dataset.name}`);
-    button.textContent = saved ? '★' : '☆';
+    button.querySelector('use').setAttribute('href', `/assets/icons.svg#${saved ? 'star-fill' : 'star'}`);
   }
   $('#favorite-count').textContent = String(favorites.size);
 }
@@ -76,23 +93,21 @@ function render({ syncUrl = true } = {}) {
     button.setAttribute('aria-pressed', String(button.dataset.category === category));
   }
   favoriteFilter.setAttribute('aria-pressed', String(favoritesOnly));
+  const selected = cards.find((card) => card.dataset.selected === 'true' && !card.hidden);
+  select(selected || matches[0]);
   if (syncUrl) updateUrl();
 }
 
-function preview(card) {
+function select(card) {
   for (const item of cards) item.removeAttribute('data-selected');
-  card.dataset.selected = 'true';
-  $('#preview-text').textContent = card.dataset.text;
-  $('#preview-name').textContent = card.dataset.name;
-  $('#preview-kind').textContent = card.dataset.ascii === 'true' ? 'ASCII expression' : 'Community-listed symbols';
-  $('#copy-preview').dataset.text = card.dataset.text;
+  if (card) card.dataset.selected = 'true';
 }
 
 async function copy(text) {
   try {
     if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
     await navigator.clipboard.writeText(text);
-    notify('Copied! Your next chat message awaits.');
+    notify('Copied. Paste into FFXIV chat.');
   } catch {
     const dialog = $('#copy-dialog');
     const input = $('#manual-copy');
@@ -152,14 +167,14 @@ $('#results').addEventListener('click', (event) => {
     if (card.hidden) favoriteFilter.focus();
     return;
   }
-  preview(card);
+  select(card);
   if (action === 'copy') void copy(card.dataset.text);
 });
 $('#results').addEventListener('focusin', (event) => {
   const card = event.target.closest('.expression-card');
-  if (card) preview(card);
+  if (card) select(card);
 });
-$('#copy-preview').addEventListener('click', () => { void copy($('#copy-preview').dataset.text); });
+for (const button of viewButtons) button.addEventListener('click', () => { setView(button.dataset.view); });
 document.addEventListener('keydown', (event) => {
   const typing = event.target.closest('input, textarea, [contenteditable="true"]');
   if (event.key === '/' && !typing && !event.ctrlKey && !event.metaKey && !event.altKey && !$('#copy-dialog').open) {
@@ -171,6 +186,10 @@ document.addEventListener('keydown', (event) => {
 });
 window.addEventListener('popstate', readUrl);
 window.addEventListener('storage', (event) => {
+  if (event.key === viewStorageKey || event.key === null) {
+    // clear() resets both preferences; favorite-key events leave the view intact.
+    setView(event.key === null ? 'grid' : event.newValue, { save: false });
+  }
   if (event.key !== storageKey && event.key !== null) return;
   try {
     const saved = JSON.parse(event.newValue || '[]');
@@ -179,6 +198,7 @@ window.addEventListener('storage', (event) => {
   } catch { /* Ignore corrupt storage from another tab. */ }
 });
 
+setView(view, { save: false });
 updateFavorites();
 readUrl();
 document.querySelectorAll('button[disabled], input[disabled]').forEach((element) => { element.disabled = false; });

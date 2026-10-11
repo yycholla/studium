@@ -34,11 +34,11 @@ Topcoat is pinned to **0.5.0**, the version available in the development machine
 - Category filters, an ASCII-only filter, and 12-at-a-time browsing.
 - Copy buttons with accessible feedback and a manual-copy dialog when clipboard permission is unavailable.
 - Local favorites, including synchronization across browser tabs.
+- Grid and list views, with your preference remembered on this browser.
 - Shareable filter URLs, `/` to focus search, and Escape to clear it.
 - Responsive layout, reduced-motion support, keyboard controls, and a selectable catalog even without JavaScript.
-- A chat-style preview; the browser preview does not reproduce the FFXIV font.
 
-The UI uses a modern companion-site layout informed by [XIVAuth](https://xivauth.net/) and [FFXIV Collect](https://ffxivcollect.com/), with restrained gold selection accents and dark surfaces drawn from the [FFXIV UI guide](https://na.finalfantasyxiv.com/uiguide/know/know-hud/hud-layout.html). All styling and decoration are original CSS. No game assets or proprietary fonts are bundled.
+The approved design baseline combines a dark scholarly archive with botanical illustrations: forest surfaces, warm paper-colored text, sage selection states, restrained brass rules, and a category sidebar. The layout takes cues from FFXIV menus while using original botanical assets, locally served open-source fonts, and Phosphor icons. No game assets or proprietary fonts are bundled. See [the design baseline](docs/DESIGN.md) for tokens, component rules, copy, references, and asset provenance; [design QA](design-qa.md) records the rendered comparison and interaction checks.
 
 ## Character compatibility
 
@@ -137,8 +137,9 @@ Since this first tool keeps all user state in the browser, you can also run `car
 | `src/lib.rs` | Explicit page/asset/API/health routes |
 | `src/pages.rs` | Hub, Chatpendium, and shared site components |
 | `crates/chatpendium-core/src/catalog.rs` | Searchable catalog, character evidence, validation |
-| `assets/app.js` | Browser search, clipboard, favorites, preview |
+| `assets/app.js` | Browser search, clipboard, favorites, grid/list preference |
 | `assets/app.css` | Responsive design |
+| `docs/DESIGN.md` | Approved design baseline and asset provenance |
 | `deploy/` | Tailscale launcher, Compose, and host Caddy configuration |
 | `wrangler.jsonc` | Cloudflare assets, account Worker, bindings, and custom domain |
 | `worker/index.mjs` | XIVAuth OAuth, protected sessions, and character selection |

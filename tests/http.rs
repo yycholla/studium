@@ -105,3 +105,41 @@ async fn unknown_paths_are_not_served_as_the_app() {
         .await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn design_assets_are_embedded_with_their_binary_content_types() {
+    for (path, kind, signature) in [
+        (
+            "/assets/botanical/sprig.webp",
+            "image/webp",
+            b"RIFF".as_slice(),
+        ),
+        (
+            "/assets/botanical/branch.webp",
+            "image/webp",
+            b"RIFF".as_slice(),
+        ),
+        (
+            "/assets/fonts/source-sans-3-400.ttf",
+            "font/ttf",
+            b"\x00\x01\x00\x00".as_slice(),
+        ),
+        (
+            "/assets/fonts/source-sans-3-600.ttf",
+            "font/ttf",
+            b"\x00\x01\x00\x00".as_slice(),
+        ),
+        ("/assets/icons.svg", "image/svg+xml", b"<svg".as_slice()),
+    ] {
+        let response = router()
+            .handle(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert_eq!(response.headers().get("content-type").unwrap(), kind);
+        let bytes = to_bytes(response.into_body(), 1_000_000).await.unwrap();
+        assert!(
+            bytes.starts_with(signature),
+            "{path} must return the original asset bytes"
+        );
+    }
+}

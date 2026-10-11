@@ -15,6 +15,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         ("/assets/app.css", "assets/app.css"),
         ("/assets/app.js", "assets/app.js"),
         ("/assets/account.js", "assets/account.js"),
+        ("/assets/icons.svg", "assets/icons.svg"),
+        (
+            "/assets/botanical/sprig.webp",
+            "assets/botanical/sprig.webp",
+        ),
+        (
+            "/assets/botanical/branch.webp",
+            "assets/botanical/branch.webp",
+        ),
+        (
+            "/assets/fonts/source-sans-3-400.ttf",
+            "assets/fonts/source-sans-3-400.ttf",
+        ),
+        (
+            "/assets/fonts/source-sans-3-600.ttf",
+            "assets/fonts/source-sans-3-600.ttf",
+        ),
         ("/api/emoji", "api/emoji.json"),
         (
             "/api/chatpendium/v1/catalog.json",

@@ -22,6 +22,10 @@ async function interceptPreview(context) {
       '/assets/app.css': ['assets/app.css', 'text/css'],
       '/assets/app.js': ['assets/app.js', 'text/javascript'],
     };
+    if (!files[path] && path.startsWith('/assets/')) {
+      const type = path.endsWith('.webp') ? 'image/webp' : path.endsWith('.ttf') ? 'font/ttf' : path.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript';
+      return route.fulfill({ status: 200, contentType: type, body: await readFile(resolve(process.env.PREVIEW_DIR, path.slice(1))) });
+    }
     if (!files[path]) return route.fulfill({ status: 404, body: 'Not found' });
     const [file, contentType] = files[path];
     await route.fulfill({ status: 200, contentType, body: await readFile(resolve(process.env.PREVIEW_DIR, file)) });
@@ -71,7 +75,11 @@ try {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.locator('[data-id="wave"] [data-action="copy"]').click();
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), '(^_^)/');
-  assert.equal(await page.locator('#preview-text').textContent(), '(^_^)/');
+  assert.equal(await page.locator('[data-id="wave"]').getAttribute('data-selected'), 'true');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await page.reload();
+  assert.equal(await page.locator('#results').getAttribute('data-view'), 'list');
+  await page.getByRole('button', { name: 'Grid', exact: true }).click();
 
   // Clipboard rejection provides selected text for manual copy.
   await page.evaluate(() => {
@@ -79,7 +87,7 @@ try {
       configurable: true, value: () => Promise.reject(new Error('Permission denied')),
     });
   });
-  await page.locator('#copy-preview').click();
+  await page.locator('[data-id="wave"] [data-action="copy"]').click();
   await page.locator('#copy-dialog').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#manual-copy').inputValue(), '(^_^)/');
   assert.equal(await page.locator('#manual-copy').evaluate((input) => input.selectionEnd - input.selectionStart), 6);
