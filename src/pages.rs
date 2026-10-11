@@ -27,7 +27,7 @@ pub async fn home() -> Result {
                     <section class="hub-intro" aria-labelledby="hub-heading">
                         <p class="eyebrow">"A COLLECTION FOR THE CURIOUS"</p>
                         <h1 id="hub-heading">"Little tools for life in Eorzea."</h1>
-                        <p class="intro-description">"A collection of FFXIV companion tools, made by yycholla. Start with Chatpendium: text faces and symbols for your next hello, party clear, or o7."</p>
+                        <p class="intro-description">"A collection of FFXIV companion tools, made by yycholla. Find a face for chat, or plan your next collection adventure."</p>
                     </section>
                     <section id="tools" aria-labelledby="tools-heading">
                         <div class="section-heading"><h2 id="tools-heading">"Explore the collection"</h2><span class="section-meta">"Made by yycholla"</span></div>
@@ -40,8 +40,17 @@ pub async fn home() -> Result {
                                 <div class="tool-card-bottom"><span>(EMOJI.len()) " expressions · No account needed"</span><span class="tool-open">"Open Chatpendium ↗"</span></div>
                             </div>
                         </a>
+                        <a class="tool-card" href="/field-notes" aria-labelledby="field-notes-title" aria-describedby="field-notes-description">
+                            <div class="tool-illustration field-tool-illustration" aria-hidden="true">glyph(name: "sparkle")</div>
+                            <div class="tool-description">
+                                <p class="eyebrow">"COLLECTIONS & GOALS"</p>
+                                <h3 id="field-notes-title">"Field Notes"</h3>
+                                <p id="field-notes-description">"Find your next mount, minion, emote, or facewear. Keep a character wishlist and sync your public collections."</p>
+                                <div class="tool-card-bottom"><span>"Your next adventure, noted"</span><span class="tool-open">"Open Field Notes ↗"</span></div>
+                            </div>
+                        </a>
                     </section>
-                    <p class="hub-note">"One tool to start. Room for more as the collection grows."</p>
+                    <p class="hub-note">"Room for more as the collection grows."</p>
                 </main>
                 site_footer()
             </body>
@@ -163,6 +172,7 @@ pub(crate) async fn site_header(active: &'static str) -> Result {
                 <nav aria-label="Main navigation">
                     <a href="/" class=(if active == "hub" { "nav-current" } else { "" }) aria-current=(if active == "hub" { Some("page") } else { None })>"All tools"</a>
                     <a href="/chatpendium" class=(if active == "chatpendium" { "nav-current" } else { "" }) aria-current=(if active == "chatpendium" { Some("page") } else { None })>"Chatpendium"</a>
+                    <a href="/field-notes" class=(if active == "field-notes" { "nav-current" } else { "" }) aria-current=(if active == "field-notes" { Some("page") } else { None })>"Field Notes"</a>
                 </nav>
                 <div class="header-account" id="header-account">
                     <a id="account-link" class="header-account-guest" href="/account" aria-current=(if active == "account" { Some("page") } else { None })>glyph(name: "user-circle")<span id="header-guest-label">"Account"</span></a>
@@ -194,7 +204,7 @@ pub(crate) async fn site_header(active: &'static str) -> Result {
 pub(crate) async fn site_footer() -> Result {
     view! {
         <footer class="site-footer container">
-            <div><p>"Plain text, ready to paste. No plugins or account needed."</p><p class="footer-links"><a href="/">"The Studium"</a>" · "<a href="/privacy">"Privacy"</a>" · "<a href="/terms">"Terms"</a></p></div>
+            <div><p>"Little tools for life in Eorzea."</p><p class="footer-links"><a href="/">"The Studium"</a>" · "<a href="/privacy">"Privacy"</a>" · "<a href="/terms">"Terms"</a></p></div>
             <p>"An unofficial fan project by yycholla."<br>"FINAL FANTASY XIV is a trademark of Square Enix. Not affiliated with Square Enix."</p>
         </footer>
     }

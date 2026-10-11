@@ -107,6 +107,7 @@
     csrfToken = data.csrf_token;
     const account = data.account;
     renderHeader(data);
+    window.dispatchEvent(new CustomEvent('studium:account', { detail: data }));
     if (!isAccount) return;
     $('account-signed-out').hidden = !data.configured || Boolean(account);
     $('account-signed-in').hidden = !account;

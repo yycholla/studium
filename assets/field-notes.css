@@ -1,0 +1,47 @@
+.field-page .intro { padding-bottom: 24px; }
+.field-page .intro h1 { font-size: clamp(40px, 5.1vw, 72px); }
+.field-sync { display: flex; justify-content: space-between; gap: 20px; border: 1px solid var(--line); border-left: 3px solid var(--soft-gold); background: var(--panel); padding: 20px; margin-bottom: 26px; position: relative; }
+.field-sync h2 { font: 22px var(--serif); margin: 0 0 6px; }
+.field-sync p { max-width: 65ch; color: var(--muted); font-size: 15px; }
+#field-sync-time { margin-top: 8px; font-size: 13px; }
+.field-sync-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; flex: 0 0 auto; }
+.field-sync-actions > a:not(.primary-button):not(.secondary-button) { font-size: 13px; color: var(--gold); text-decoration: underline; text-underline-offset: 3px; }
+.field-controls { display: flex; align-items: end; gap: 12px; }
+.field-controls label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: var(--muted); }
+.field-search { flex: 1; min-width: 160px; }
+.field-controls input, .field-controls select, .field-note textarea { min-height: 46px; border: 1px solid #788475; border-radius: 4px; padding: 10px 12px; background: #1f3027; color: var(--text); font: 16px var(--sans); min-width: 0; }
+.field-controls input { width: 100%; }
+.field-controls select { max-width: 100%; }
+.field-hint, .field-credit { color: var(--muted); font-size: 13px; margin-top: 12px; }
+.field-credit a { color: var(--gold); text-decoration: underline; }
+.field-page .results-toolbar { justify-content: space-between; gap: 12px; min-height: 46px; }
+#field-retry { border: 0; background: none; color: var(--gold); text-decoration: underline; min-height: 44px; }
+.field-group { margin: 24px 0; }
+.field-group > h2 { font: 22px var(--serif); padding-bottom: 12px; color: var(--gold); overflow-wrap: anywhere; }
+.field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field-card { border: 1px solid var(--line); border-radius: 4px; background: var(--panel); padding: 18px; display: flex; flex-direction: column; min-width: 0; }
+.field-card:hover, .field-card:focus-within { border-color: var(--soft-gold); }
+.field-card-top { display: flex; align-items: center; gap: 14px; }
+.field-card img { width: 48px; height: 48px; object-fit: contain; flex-shrink: 0; }
+.field-card h3 { font: 22px var(--serif); line-height: 1.2; overflow-wrap: anywhere; }
+.field-card .field-kind { display: block; color: var(--muted); font-size: 12px; margin-top: 5px; }
+.field-ownership { margin-top: 12px; font-size: 13px; color: var(--muted); }
+.field-ownership[data-owned='true'] { color: var(--sage); }
+.field-sources { padding-left: 18px; margin: 12px 0 16px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+.field-sources li + li { margin-top: 6px; }
+.field-card-bottom { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.field-card-bottom a { color: var(--gold); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; padding-block: 10px; }
+.field-card .secondary-button { min-height: 44px; padding: 8px 12px; font-size: 14px; }
+.field-note { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.field-note summary { color: var(--gold); cursor: pointer; padding: 4px 0; }
+.field-note label { display: block; font-size: 13px; margin: 10px 0 6px; }
+.field-note textarea { display: block; width: 100%; resize: vertical; min-height: 90px; }
+.field-note button { margin-top: 8px; }
+#field-wishlist { gap: 12px; }
+@media (min-width: 1500px) { .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1000px) { .field-controls { flex-wrap: wrap; } .field-search { flex-basis: 100%; } .field-sync { flex-direction: column; } .field-sync-actions { flex-direction: row; flex-wrap: wrap; align-items: center; } }
+@media (max-width: 760px) { .field-page .catalog-sidebar { grid-template-columns: 1fr; } #field-wishlist { width: fit-content; font-size: 14px; margin: 0 4px; min-height: 44px; } .field-page .intro { padding-bottom: 20px; } }
+@media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } .field-sync { padding: 16px; } .field-controls > label:not(.field-search) { flex: 1; min-width: 0; } .field-card { padding: 16px; } .field-sync h2 { font-size: 20px; } }
+
+.field-controls select:focus-visible, .field-note textarea:focus-visible { outline: 2px solid var(--sage); outline-offset: 4px; }
+.field-card button:disabled { opacity: .55; }

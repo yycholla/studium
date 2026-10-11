@@ -41,7 +41,7 @@ const shown = () => page.locator('.expression-card:visible');
 try {
   await page.goto(base);
   assert.equal(await page.title(), 'The Studium · Little tools for life in Eorzea');
-  await page.locator('.tool-card').click();
+  await page.locator('.tool-card[href="/chatpendium"]').click();
   await page.waitForFunction(() => !document.querySelector('#search').disabled);
   assert.equal(await shown().count(), 12);
   await page.screenshot({ path: 'test-results/desktop.png', fullPage: true });

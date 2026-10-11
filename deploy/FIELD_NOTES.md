@@ -1,0 +1,32 @@
+# Field Notes integration
+
+Field Notes uses the verified characters already linked through XIVAuth. It requires no additional OAuth scopes or API key. The existing Cloudflare deployment applies `0003_field_notes.sql` before publishing the Worker. The Rust exporter emits the page and assets; the Worker handles `/api/field-notes/*` before static assets.
+
+## Data sources and freshness
+
+Public catalogs come from `https://ffxivcollect.com/api/{mounts,minions,emotes,facewear}?language=en`. They are normalized to ID, name, icon, patch, and source text, cached in D1 for six hours, and served from cache during an outage. Only HTTPS icons hosted on FFXIV Collect are rendered; other provider URLs are not requested.
+
+Character sync calls `/api/characters/{lodestone_id}?ids=1&latest=1`. The ID always comes from an account-owned linked character row, never from a client URL. The API only serves existing tracked characters. A 404 directs the player to FFXIV Collect character search, where selecting the character adds it. A private profile returns 403. No private provider authentication is used.
+
+The character response includes a source timestamp (`last_parsed`) and per-collection `public` and `ids` values. Even if upstream supplies IDs for a private collection, they are discarded. Public empty collections mean nothing collected; absent/private collections mean unknown. Invalid identity, timestamps or malformed collections reject the whole new snapshot. Temporary failures retain the last successful snapshot and label it cached; 403/404 responses erase the snapshot.
+
+Opening the page, switching characters, or returning focus reads the stored journal and syncs if due. A visible page checks every five minutes; successful provider checks are limited to once per hour per account/character. Failed checks have a five-minute cooldown. Atomic D1 leases prevent duplicate requests from concurrent tabs (90-second recovery after interruption). Requests time out after 20 seconds and JSON responses are bounded to 4 MB. Catalog failures back off for one minute. No cron or continuous polling occurs with the page closed.
+
+`latest=1` asks the provider to refresh if stale; it is not a guarantee of live Lodestone data. The current provider considers characters stale after six hours. The page shows source age separately from our check time. Supported automatic categories and privacy limits: [FFXIV Collect FAQ](https://ffxivcollect.com/faq). API contract reference: [provider source](https://github.com/fae-industries/ffxiv-collect/tree/main/app/controllers/api), [character serializer](https://github.com/fae-industries/ffxiv-collect/blob/main/app/views/api/characters/_character.json.jbuilder).
+
+## Private journal API
+
+- `GET /api/field-notes/catalog?kind=mounts`: anonymous normalized catalog.
+- `GET /api/field-notes/state?character=<persistent_key>`: goals, collection snapshot, status and timestamps for a linked character.
+- `POST /api/field-notes/sync`: `{ "character_key": "..." }`; refreshes if due and returns state.
+- `POST /api/field-notes/goal`: `{ "character_key": "...", "kind": "mounts", "item_id": 1, "action": "save", "note": "..." }`; use `remove` to delete a goal.
+
+Private endpoints require an active Studium session and validate character ownership every time. POSTs require same-origin JSON and the session CSRF token. Catalog kinds and IDs are validated; new goals must exist in the catalog. Notes are limited to 1,000 characters and journals to 300 goals per character. Goals remain after collection, with status derived from the latest snapshot. No client-supplied completion field exists.
+
+Snapshots and goals belong to `(account_id, lodestone_id)` so reauthorization does not destroy the journal when identity rows are replaced. Unshared characters become inaccessible; re-linking restores their goals. Removing the account cascades to all journal rows. Shared catalog data is independent of accounts. See `/privacy` for the user-facing policy.
+
+The account script emits `studium:account` after successful session loads, selection and logout. Field Notes clears the previous character's DOM immediately and ignores stale responses. Unsaved notes are discarded on character switch. Background refreshes preserve a focused note editor; saved notes use text values, not HTML.
+
+## Validation
+
+`npm run check` includes authorization/isolation, CSRF, privacy, malformed upstream responses, cache fallback, goal limits, deletion, character switching, automatic sync and late-response tests, using the real Worker router and exported Topcoat HTML. The pinned workerd runtime also checks OAuth redirect behavior. `node tests/field-notes-browser.mjs` runs optional Chromium checks with deterministic fixtures after export (install Playwright and Chromium first); CI runs these at 320–1440 px and uploads screenshots. CI verifies the deployed page and each live catalog endpoint after deployment. Live character sync still depends on a signed-in user's linked/public profile.

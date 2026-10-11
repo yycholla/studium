@@ -243,3 +243,17 @@
     .header-account-guest > .icon { display: none; }
   }
 }
+
+.tool-card + .tool-card { margin-top: 20px; }
+.field-tool-illustration > .icon { width: 72px; height: 72px; color: var(--sage); }
+
+/* Keep the expanded hub navigation clear of the account menu at tablet widths. */
+@layer responsive {
+  @media (min-width: 761px) and (max-width: 1000px) {
+    .header-inner { flex-wrap: wrap; gap: 12px; padding-top: 8px; }
+    .header-inner nav { order: 3; width: 100%; min-height: 50px; }
+  }
+}
+@layer responsive {
+  @media (max-width: 380px) { .header-inner nav a { padding-inline: 10px; } }
+}

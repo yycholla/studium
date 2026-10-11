@@ -153,3 +153,20 @@ async fn design_assets_are_embedded_with_their_binary_content_types() {
         );
     }
 }
+
+#[tokio::test]
+async fn field_notes_embeds_the_shared_character_menu_and_collection_assets() {
+    let (status, _, html) = get("/field-notes").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(html.contains("id=\"header-account-menu\""));
+    assert!(html.contains("id=\"field-library\""));
+    assert!(html.contains("/assets/field-notes.js"));
+    for (path, kind) in [
+        ("/assets/field-notes.js", "text/javascript"),
+        ("/assets/field-notes.css", "text/css"),
+    ] {
+        let (status, content_type, _) = get(path).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(content_type.starts_with(kind));
+    }
+}

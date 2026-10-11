@@ -1,6 +1,6 @@
 # The Studium
 
-An FFXIV companion hub for `studium.yycholla.com`. Its first tool, **Chatpendium**, is a searchable library of text expressions at `/chatpendium`. The home page at `/` introduces the collection and links to each tool. Built with **Rust and Topcoat**, with server-rendered HTML, CSS, and a small vanilla JavaScript enhancement. No Node build, database, account, game plugin, or external runtime service is required.
+An FFXIV companion hub for `studium.yycholla.com`. Its first tool, **Chatpendium**, is a searchable library of text expressions at `/chatpendium`. The home page at `/` introduces the collection and links to each tool. Built with **Rust and Topcoat**, with server-rendered HTML, CSS, and a small vanilla JavaScript enhancement. Chatpendium runs independently; accounts and Field Notes use a Cloudflare Worker and D1 database, with XIVAuth sign-in.
 
 An optional [Chatpendium Dalamud companion](plugin/README.md) adds an in-game picker and Chat 2 context menu, using a Rust core with a C# adapter. The website remains usable on its own.
 
@@ -39,6 +39,16 @@ Topcoat is pinned to **0.5.0**, the version available in the development machine
 - Responsive layout, reduced-motion support, keyboard controls, and a selectable catalog even without JavaScript.
 
 The approved design baseline combines a dark scholarly archive with botanical illustrations: forest surfaces, warm paper-colored text, sage selection states, restrained brass rules, and a category sidebar. The layout takes cues from FFXIV menus while using original botanical assets, locally served open-source fonts, and Phosphor icons. No game assets or proprietary fonts are bundled. See [the design baseline](docs/DESIGN.md) for tokens, component rules, copy, references, and asset provenance; [design QA](design-qa.md) records the rendered comparison and interaction checks.
+
+## Field Notes
+
+`/field-notes` is a character-linked collectible journal. Browse mounts, minions, emotes, and facewear; search names and acquisition sources; group by collection or first source; and save goals with private notes for each linked character.
+
+Select a verified character in the top-right account menu. Field Notes automatically checks its public FFXIV Collect collections when opened or switched, at most hourly, and periodically while the page remains open. Goals display their collection status automatically and stay in the wishlist after collection. There is no manual ownership toggle. Source timestamps are shown because upstream updates can lag by several hours.
+
+A character must already be tracked by FFXIV Collect, and its profile and relevant Lodestone collections must be public. Unknown/private data is not treated as uncollected. Orchestrion rolls and other private-only collections cannot auto-sync and are omitted from this version. See the [provider FAQ](https://ffxivcollect.com/faq) and [Field Notes integration](deploy/FIELD_NOTES.md).
+
+For the complete app locally, use `npm run dev` in the devenv shell; the Rust server alone serves the UI and Chatpendium, without the Worker APIs. Run `npm run check` for the full build, Rust, Worker, DOM, and deployment checks.
 
 ## Character compatibility
 

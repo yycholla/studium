@@ -22,7 +22,8 @@ const config :Workerd.Config = (
       bindings = [(name = "PROVIDER", service = "provider")],
       modules = [
         (name = "test.mjs", esModule = ${source('./fixtures/auth-runtime.mjs')}),
-        (name = "worker.mjs", esModule = ${source('../worker/index.mjs')})
+        (name = "worker.mjs", esModule = ${source('../worker/index.mjs')}),
+        (name = "field-notes.mjs", esModule = ${source('../worker/field-notes.mjs')})
       ]
     )),
     (name = "provider", worker = (

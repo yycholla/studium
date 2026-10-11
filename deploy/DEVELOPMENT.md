@@ -13,7 +13,7 @@ The environment provides Rust, Cargo, rustfmt, Clippy, a C compiler, pkg-config,
 | Command inside the shell | Behavior |
 | --- | --- |
 | `studium-dev` | Export the Rust site and run Wrangler on port 8787 |
-| `studium-check` | Rust formatting/tests, auth and deployment tests, export, DOM tests, Worker dry run |
+| `studium-check` | Rust formatting/tests, auth, Field Notes and deployment tests, export, DOM tests, Worker dry run |
 | `studium-build` | Export the static site to `dist/` |
 | `studium-deploy` | Run checks, apply remote D1 migrations, then deploy |
 | `npm run db:migrate` | Apply pending production D1 migrations |
@@ -27,7 +27,7 @@ Devenv installs dependencies when you enter the environment; it does not start a
 
 ## Automatic production deployments
 
-The **Studium website** GitHub Actions workflow runs the same devenv checks on pull requests and pushes to `main`. After a successful main build, it downloads that build's static artifact, applies D1 migrations, deploys the Worker and assets, and checks the public health/account routes and anonymous auth configuration endpoint. Runs are serialized so migrations and deployments do not overlap. Manual **Run workflow** on `main` follows the same checks and deployment path. A successful deployment confirms auth configuration is present; it does not prove the OAuth credentials are accepted. See [sign-in diagnostics](XIVAUTH.md#diagnosing-failed-sign-ins) for provider failures.
+The **Studium website** GitHub Actions workflow runs the same devenv checks on pull requests and pushes to `main`. After a successful main build, it downloads that build's static artifact, applies D1 migrations, deploys the Worker and assets, and checks the public health/account/Field Notes routes, anonymous auth configuration endpoint, and all four live collectible catalogs. A separate Chromium check validates the exported Field Notes page at six viewport widths and uploads screenshots before deployment. Runs are serialized so migrations and deployments do not overlap. Manual **Run workflow** on `main` follows the same checks and deployment path. A successful deployment confirms auth configuration is present; it does not prove the OAuth credentials are accepted. See [sign-in diagnostics](XIVAUTH.md#diagnosing-failed-sign-ins) for provider failures.
 
 Add these **repository Actions secrets** at [Studium's Actions settings](https://github.com/yycholla/studium/settings/secrets/actions):
 

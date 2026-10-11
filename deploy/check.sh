@@ -8,5 +8,5 @@ node tests/auth-runtime.mjs
 node tests/deploy.mjs
 npm run build
 npm run test:dom
+npm run test:field-notes
 npm run deploy:check
-

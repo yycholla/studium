@@ -1,4 +1,5 @@
 // Small server-side adapter for the Rust-rendered site. No provider tokens reach the browser.
+import { handleFieldNotes } from './field-notes.mjs';
 const PROVIDER = 'https://xivauth.net';
 const SCOPES = 'user character:all';
 const SESSION_SECONDS = 8 * 60 * 60;
@@ -180,6 +181,12 @@ async function callback(request, env, config, fetcher) {
 
 export async function handle(request, env, fetcher = fetch) {
   const url = new URL(request.url);
+  if (url.pathname.startsWith('/api/field-notes/')) {
+    if (!env.DB || !env.SITE_ORIGIN) return reply({ error: 'Field Notes is not available yet.' }, 503);
+    const config = settings(env);
+    if (url.origin !== config.origin) return reply({ error: 'Use the configured Studium address.' }, 400);
+    return handleFieldNotes(request, env, await session(request, env, config), config, fetcher);
+  }
   if (!url.pathname.startsWith('/auth/') && !url.pathname.startsWith('/api/auth/')) {
     return env.ASSETS.fetch(request);
   }
@@ -247,4 +254,3 @@ export default {
     }
   },
 };
-

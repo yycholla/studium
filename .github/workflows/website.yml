@@ -25,6 +25,20 @@ jobs:
         run: devenv shell -- studium-check
       - name: Verify lockfiles stayed unchanged
         run: git diff --exit-code -- devenv.lock package-lock.json Cargo.lock
+      - name: Install browser QA tools
+        run: |
+          npm install --no-save --package-lock=false playwright@1.59.1
+          npx playwright install --with-deps chromium
+      - name: Check Field Notes in Chromium
+        run: node tests/field-notes-browser.mjs
+      - name: Upload browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studium-browser-${{ github.sha }}
+          path: test-results/field-notes-*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: studium-site-${{ github.sha }}
@@ -82,6 +96,10 @@ jobs:
               grep -Fx ok "$body"
             elif test "$path" = "/api/auth/session"; then
               jq -e '.configured == true and .account == null' "$body"
+            elif test "$path" = "/field-notes"; then
+              grep -Fq 'id="field-library"' "$body"
+            elif [[ "$path" == /api/field-notes/catalog* ]]; then
+              jq -e '.items | length > 0' "$body"
             else
               grep -Fq 'id="account-status"' "$body"
             fi
@@ -89,4 +107,8 @@ jobs:
           check_url /healthz
           check_url /account
           check_url /api/auth/session
+          check_url /field-notes
+          for kind in mounts minions emotes facewear; do
+            check_url "/api/field-notes/catalog?kind=$kind"
+          done
           echo 'Deployed and verified https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"

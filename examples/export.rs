@@ -9,6 +9,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     for (route, file) in [
         ("/", "index.html"),
         ("/chatpendium", "chatpendium/index.html"),
+        ("/field-notes", "field-notes/index.html"),
+        ("/assets/field-notes.js", "assets/field-notes.js"),
+        ("/assets/field-notes.css", "assets/field-notes.css"),
         ("/account", "account/index.html"),
         ("/privacy", "privacy/index.html"),
         ("/terms", "terms/index.html"),

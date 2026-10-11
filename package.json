@@ -14,11 +14,11 @@
     "deploy": "bash deploy/cloudflare.sh",
     "deploy:check": "wrangler deploy --dry-run",
     "db:migrate": "wrangler d1 migrations apply studium --remote",
-    "test:deploy": "node tests/deploy.mjs"
+    "test:deploy": "node tests/deploy.mjs",
+    "test:field-notes": "node tests/field-notes.mjs && node tests/field-notes-dom.mjs"
   },
   "devDependencies": {
     "jsdom": "26.1.0",
     "wrangler": "4.149.0"
   }
 }
-

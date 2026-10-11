@@ -32,7 +32,7 @@ pub async fn account() -> Result {
                     <section id="account-signed-in" class="account-panel" hidden="hidden" aria-labelledby="characters-title">
                         <p id="account-greeting"></p>
                         <h2 id="characters-title">"Your linked characters"</h2>
-                        <p>"Choose the character to use across Studium. This does not import your inventory or collection progress."</p>
+                        <p>"Choose the character to use across Studium. Field Notes uses this character to sync public collections from FFXIV Collect; it does not read your inventory."</p>
                         <div id="account-characters" class="account-characters"></div>
                         <p id="account-no-characters" hidden="hidden">"No verified characters were shared. Add and verify a character in XIVAuth, then choose Refresh characters."</p>
                         <p id="account-updated" class="account-small"></p>
@@ -43,7 +43,7 @@ pub async fn account() -> Result {
                         </div>
                         <details class="account-remove">
                             <summary>"Remove your Studium account"</summary>
-                            <p>"This deletes your stored profile, linked characters, and all Studium sign-in sessions. Your XIVAuth account and browser-saved Chatpendium favorites remain yours."</p>
+                            <p>"This deletes your stored profile, linked characters, collection snapshots, wishlists, notes, and all Studium sign-in sessions. Your XIVAuth account and browser-saved Chatpendium favorites remain yours."</p>
                             <button id="account-delete" class="secondary-button" type="button">"Remove my account"</button>
                         </details>
                     </section>
@@ -68,13 +68,15 @@ pub async fn privacy() -> Result {
                     <h2>"What we store"</h2>
                     <p>"When you sign in, Studium stores your XIVAuth user ID and display name, the verified characters you authorize, your selected character, and when the information was refreshed. Character records include the XIVAuth persistent key, Lodestone ID, name, home world, data center, verification date, and avatar and portrait URLs. We use these records to recognize your account and provide character selection."</p>
                     <p>"Studium does not request your email address, linked social accounts, Square Enix password, inventory, or chat history. XIVAuth access tokens are used on the server during sign-in, then discarded; they are not stored in your browser or our database."</p>
+                    <p>"When you use Field Notes, we store public collection IDs and visibility, source and check timestamps, and the wishlist goals and notes you save for each character. These records are private to your Studium account. We do not store private collection IDs returned by a provider."</p>
                     <h2>"Cookies and local storage"</h2>
                     <p>"Essential cookies protect the sign-in flow and keep you signed in. Sign-in requests expire after ten minutes and sessions after eight hours. Chatpendium favorites and your grid/list view preference are stored separately in this browser and do not sync with your account."</p>
                     <h2>"Services involved"</h2>
                     <p>"Cloudflare hosts the website and account database and processes network requests. XIVAuth provides authentication and the character information you choose to share, under its own "<a href="https://xivauth.net/legal/privacy">"privacy policy"</a>". These providers may process request metadata under their own policies. Character portraits load directly from Square Enix’s image servers without sending a page referrer. Studium does not add advertising or analytics trackers."</p>
+                    <p>"Field Notes sends the selected character’s public Lodestone ID to FFXIV Collect to check collections. Collectible icons load directly from FFXIV Collect without a page referrer. Its "<a href="https://ffxivcollect.com/faq">"FAQ and privacy policy"</a>" describe that service."</p>
                     <h2>"Your choices"</h2>
-                    <p>"Use the tools without signing in, change shared characters through XIVAuth, or refresh the linked characters from your account page. Removing your Studium account deletes its profile, characters, and sessions from the active database. Hosting-provider backups may retain deleted data according to their retention policies. Signing out ends this browser's session; it does not sign you out of XIVAuth."</p>
-                    <p>"Profile and character records remain until you remove your account. Expired sessions and unfinished sign-in requests are deleted during subsequent sign-ins. Character information is a snapshot from your last sign-in and is not monitored continuously."</p>
+                    <p>"Use the tools without signing in, change shared characters through XIVAuth, or refresh the linked characters from your account page. Removing your Studium account deletes its profile, characters, sessions, collection snapshots, wishlists, and notes from the active database. Hosting-provider backups may retain deleted data according to their retention policies. Signing out ends this browser's session; it does not sign you out of XIVAuth."</p>
+                    <p>"Profile, character, and collection records remain until you remove your account; goals and notes can also be removed individually. Removing a shared character in XIVAuth and refreshing your linked characters prevents access to its journal; its stored goals remain available if you link it again. Expired sessions and unfinished sign-in requests are deleted during subsequent sign-ins. Character identity is a snapshot from your last sign-in. Field Notes checks collections when you open its page, switch characters, and periodically while the page is open, with at most one successful check per hour. Private or missing profiles clear saved collection snapshots; temporary service failures retain the last successful snapshot."</p>
                     <h2>"Contact"</h2>
                     <p>"For questions, contact yycholla through the "<a href="https://github.com/yycholla/studium">"Studium GitHub repository"</a>". Do not post passwords, tokens, or other private information in public issues."</p>
                 </main>

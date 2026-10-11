@@ -1,5 +1,6 @@
 pub use chatpendium_core::catalog;
 mod account_pages;
+mod field_notes;
 mod pages;
 
 use topcoat::{
@@ -15,12 +16,15 @@ pub fn router() -> Router {
     Router::builder()
         .page(pages::home)
         .page(pages::chatpendium)
+        .page(field_notes::field_notes)
         .page(account_pages::account)
         .page(account_pages::privacy)
         .page(account_pages::terms)
         .route(styles)
         .route(script)
         .route(account_script)
+        .route(field_notes_script)
+        .route(field_notes_styles)
         .route(favicon)
         .route(favicon_png)
         .route(icon_sprite)
@@ -32,6 +36,19 @@ pub fn router() -> Router {
         .route(plugin_catalog)
         .route(health)
         .build()
+}
+
+#[route(GET "/assets/field-notes.js")]
+async fn field_notes_script() -> Result<([(&'static str, &'static str); 1], &'static str)> {
+    Ok((
+        [("content-type", "text/javascript; charset=utf-8")],
+        include_str!("../assets/field-notes.js"),
+    ))
+}
+
+#[route(GET "/assets/field-notes.css")]
+async fn field_notes_styles() -> Result<Css<&'static str>> {
+    Ok(Css(include_str!("../assets/field-notes.css")))
 }
 
 #[route(GET "/assets/account.js")]
