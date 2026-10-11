@@ -13,7 +13,12 @@ if(process.argv.includes('--live')) {
   ]) {
     const response=await fetch(url,{redirect:'error',signal:AbortSignal.timeout(20000)});
     if(!response.ok)throw Error(`Live ${label} roster: HTTP ${response.status}`);
-    fixtures.push({label,html:await response.text()});
+    const html=await response.text();
+    // Structural diagnostics only: no character names, IDs, or page text.
+    const {JSDOM}=await import('jsdom'),dom=new JSDOM(html),d=dom.window.document;
+    const ancestors=e=>{const nodes=[];for(let i=0;e&&i<7;i++,e=e.parentElement)nodes.push(e.tagName.toLowerCase()+'.'+e.className);return nodes;};
+    console.log(JSON.stringify({label,names:d.querySelectorAll('.entry__name').length,first:ancestors(d.querySelector('.entry__name')),entryClasses:[...new Set([...d.querySelectorAll('[class*=entry]')].map(e=>e.tagName.toLowerCase()+'.'+e.className))].slice(0,20)}));
+    dom.window.close();fixtures.push({label,html});
   }
 }
 const source=path=>JSON.stringify(readFileSync(new URL(path,import.meta.url),'utf8'));
