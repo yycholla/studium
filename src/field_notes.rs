@@ -32,6 +32,7 @@ pub async fn field_notes() -> Result {
                         </div>
                         <div class="botanical-divider" aria-hidden="true"><img src="/assets/botanical/sprig.webp" alt="" width="22" height="36"></div>
                         <button type="button" id="field-wishlist" class="filter" aria-pressed="false">"My wishlist "<span id="field-goal-count">"0"</span></button>
+                        <a href="/groups" class="filter">"Collection groups ↗"</a>
                         <div class="sidebar-note"><p>"A little journal for your next adventure."</p><img src="/assets/botanical/branch.webp" alt="" width="215" height="215" aria-hidden="true"></div>
                     </aside>
                     <main class="catalog-main">

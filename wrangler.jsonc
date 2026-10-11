@@ -15,7 +15,8 @@
     "run_worker_first": [
       "/auth/*",
       "/api/auth/*",
-      "/api/field-notes/*"
+      "/api/field-notes/*",
+      "/api/groups/*"
     ]
   },
   "routes": [

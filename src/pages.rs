@@ -45,7 +45,7 @@ pub async fn home() -> Result {
                             <div class="tool-description">
                                 <p class="eyebrow">"COLLECTIONS & GOALS"</p>
                                 <h3 id="field-notes-title">"Field Notes"</h3>
-                                <p id="field-notes-description">"Find your next mount, minion, emote, or facewear. Keep a character wishlist and sync your public collections."</p>
+                                <p id="field-notes-description">"Find your next mount, minion, emote, or facewear. Keep a character wishlist, sync your public collections, and plan runs with your group."</p>
                                 <div class="tool-card-bottom"><span>"Your next adventure, noted"</span><span class="tool-open">"Open Field Notes ↗"</span></div>
                             </div>
                         </a>

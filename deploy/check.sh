@@ -9,4 +9,5 @@ node tests/deploy.mjs
 npm run build
 npm run test:dom
 npm run test:field-notes
+npm run test:groups
 npm run deploy:check

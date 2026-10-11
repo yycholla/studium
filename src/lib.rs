@@ -1,6 +1,7 @@
 pub use chatpendium_core::catalog;
 mod account_pages;
 mod field_notes;
+mod groups;
 mod pages;
 
 use topcoat::{
@@ -17,6 +18,7 @@ pub fn router() -> Router {
         .page(pages::home)
         .page(pages::chatpendium)
         .page(field_notes::field_notes)
+        .page(groups::groups)
         .page(account_pages::account)
         .page(account_pages::privacy)
         .page(account_pages::terms)
@@ -25,6 +27,9 @@ pub fn router() -> Router {
         .route(account_script)
         .route(field_notes_script)
         .route(field_notes_styles)
+        .route(groups_script)
+        .route(groups_styles)
+        .route(group_planner_script)
         .route(favicon)
         .route(favicon_png)
         .route(icon_sprite)
@@ -141,4 +146,23 @@ async fn font_semibold() -> Result<([(&'static str, &'static str); 1], &'static 
         [("content-type", "font/ttf")],
         include_bytes!("../assets/fonts/source-sans-3-600.ttf"),
     ))
+}
+
+#[route(GET "/assets/groups.js")]
+async fn groups_script() -> Result<([(&'static str, &'static str); 1], &'static str)> {
+    Ok((
+        [("content-type", "text/javascript; charset=utf-8")],
+        include_str!("../assets/groups.js"),
+    ))
+}
+#[route(GET "/assets/group-planner.js")]
+async fn group_planner_script() -> Result<([(&'static str, &'static str); 1], &'static str)> {
+    Ok((
+        [("content-type", "text/javascript; charset=utf-8")],
+        include_str!("../assets/group-planner.js"),
+    ))
+}
+#[route(GET "/assets/groups.css")]
+async fn groups_styles() -> Result<Css<&'static str>> {
+    Ok(Css(include_str!("../assets/groups.css")))
 }

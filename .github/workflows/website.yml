@@ -35,12 +35,16 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Check Field Notes in Chromium
         run: node tests/field-notes-browser.mjs --live-provider
+      - name: Check collection groups in Chromium
+        run: node tests/groups-browser.mjs --live-catalogs
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: studium-browser-${{ github.sha }}
-          path: test-results/field-notes-*.png
+          path: |
+            test-results/field-notes-*.png
+            test-results/groups-*.png
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4
@@ -102,6 +106,8 @@ jobs:
               jq -e '.configured == true and .account == null' "$body"
             elif test "$path" = "/field-notes"; then
               grep -Fq 'id="field-library"' "$body"
+            elif test "$path" = "/groups"; then
+              grep -Fq 'id="group-content"' "$body"
             elif [[ "$path" == /api/field-notes/catalog* ]]; then
               jq -e '.items | length > 0' "$body"
             else
@@ -112,5 +118,6 @@ jobs:
           check_url /account
           check_url /api/auth/session
           check_url /field-notes
+          check_url /groups
           node tests/collect-live.mjs --studium
           echo 'Deployed and verified https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"
