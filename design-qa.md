@@ -61,3 +61,11 @@ P3: The reference contains faint paper grain and tiny rule-end ornaments; these 
 - [x] Document the reusable baseline and run regression checks.
 
 Final result: passed
+
+## Favicon and tool-tile follow-up
+
+Added the generated simplified sprig favicon in a 64px PNG plus an ICO containing 16, 32, 48, and 64px images. Inspected the actual 16px variant enlarged without smoothing to confirm its recognizable leaf silhouette. Both assets are embedded with their correct content types and emitted byte-for-byte by the exporter; all five HTML pages include the shared icon links. The generated source and exact production prompt are described in `docs/DESIGN.md`.
+
+Restored the Chatpendium tile's original angled/staggered expression arrangement, distinct gold/sage/rose accents, and added the existing botanical branch as a quiet backdrop. The [updated All tools browser capture](docs/design/implementation-hub.webp) is 1363 × 936 pixels at a 1363 × 936 CSS viewport, density 1. Also inspected the hub at 390px: no horizontal page overflow, and the bounding boxes of all three expressions remain inside the illustration. The tile still links to Chatpendium.
+
+Reran all 13 Rust tests (including favicon response types/signatures), formatting, static export, and whitespace checks. Final result: passed

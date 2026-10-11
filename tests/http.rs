@@ -110,6 +110,16 @@ async fn unknown_paths_are_not_served_as_the_app() {
 async fn design_assets_are_embedded_with_their_binary_content_types() {
     for (path, kind, signature) in [
         (
+            "/favicon.ico",
+            "image/x-icon",
+            b"\x00\x00\x01\x00".as_slice(),
+        ),
+        (
+            "/assets/favicon.png",
+            "image/png",
+            b"\x89PNG\r\n\x1a\n".as_slice(),
+        ),
+        (
             "/assets/botanical/sprig.webp",
             "image/webp",
             b"RIFF".as_slice(),

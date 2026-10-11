@@ -21,6 +21,8 @@ pub fn router() -> Router {
         .route(styles)
         .route(script)
         .route(account_script)
+        .route(favicon)
+        .route(favicon_png)
         .route(icon_sprite)
         .route(botanical_sprig)
         .route(botanical_branch)
@@ -73,6 +75,22 @@ async fn icon_sprite() -> Result<([(&'static str, &'static str); 1], &'static [u
     Ok((
         [("content-type", "image/svg+xml")],
         include_bytes!("../assets/icons.svg"),
+    ))
+}
+
+#[route(GET "/favicon.ico")]
+async fn favicon() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "image/x-icon")],
+        include_bytes!("../assets/favicon.ico"),
+    ))
+}
+
+#[route(GET "/assets/favicon.png")]
+async fn favicon_png() -> Result<([(&'static str, &'static str); 1], &'static [u8])> {
+    Ok((
+        [("content-type", "image/png")],
+        include_bytes!("../assets/favicon.png"),
     ))
 }
 
