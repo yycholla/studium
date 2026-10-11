@@ -58,6 +58,21 @@ The site uses a fixed `SITE_ORIGIN` to prevent redirect-host injection. Sign in 
 
 Local tests mock the provider and use SQLite. They verify the auth flow and account isolation, but do not prove that your registered client, production D1 binding, or Cloudflare domain is configured correctly. Complete the browser checks above after deployment.
 
+## Diagnosing failed sign-ins
+
+The account page displays a safe reference when sign-in fails, such as `token-http-401-invalid_client`. In the Studium Worker's Observability logs, search for `studium_auth_failure` to see the matching reference, stage, HTTP status, and recognized OAuth error code. Custom diagnostics omit request URLs, cookies, authorization codes, tokens, credentials, provider bodies, and raw exception messages.
+
+Wrangler enables persistent invocation logs and `observability.redact_query_string` so Cloudflare removes query strings (including OAuth callback codes and state) from request URLs in logs and traces. Do not share full request headers or older unredacted logs.
+
+- `token-http-401-invalid_client`: verify the Worker secret and configured client ID belong to the same XIVAuth OAuth client. Use the original client secret, not an application ID or stored hash.
+- `token-http-400-invalid_grant`: begin a new sign-in; check the callback URI and PKCE configuration if it persists.
+- `user-http-*` / `characters-http-*`: the provider rejected a profile request; check consent/scopes and provider availability.
+- `profile-failed`: a returned profile or verified character does not match the expected API fields.
+- `database-failed`: Studium could not save the account/session; check D1 migrations and service availability.
+- `*-network`, `*-json`, or `*-size`: a provider request failed or returned an unexpected response.
+
+The deployment workflow also checks that `/api/auth/session` reports `configured: true`. This detects missing configuration, but validating credentials and character linking still requires completing a real browser sign-in.
+
 ## Local development
 
 For UI-only work, `cargo run --locked` still serves the Rust site; it does not implement the Worker auth endpoints. Static Tailscale previews also serve only the UI.

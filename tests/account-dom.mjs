@@ -68,3 +68,13 @@ test('unconfigured auth, provider cancellation and offline responses remain unde
   const offline = await setup(t, { fail: true });
   assert.match(offline.document.querySelector('#account-status').textContent, /still use Chatpendium/);
 });
+
+test('sign-in failure shows a safe support reference and clears it from the URL', async t => {
+  const data = { configured: true, account: null };
+  const valid = await setup(t, { data, query: '?error=provider&ref=token-http-401-invalid_client' });
+  assert.match(valid.document.querySelector('#account-status').textContent, /Reference: token-http-401-invalid_client/);
+  assert.equal(valid.window.location.search, '');
+  const invalid = await setup(t, { data, query: '?error=provider&ref=private-token%3Cscript%3E' });
+  assert.doesNotMatch(invalid.document.querySelector('#account-status').textContent, /Reference:|private-token/);
+  assert.equal(invalid.window.location.search, '');
+});

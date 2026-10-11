@@ -80,10 +80,13 @@ jobs:
             fi
             if test "$path" = "/healthz"; then
               grep -Fx ok "$body"
+            elif test "$path" = "/api/auth/session"; then
+              jq -e '.configured == true and .account == null' "$body"
             else
               grep -Fq 'id="account-status"' "$body"
             fi
           }
           check_url /healthz
           check_url /account
+          check_url /api/auth/session
           echo 'Deployed and verified https://studium.yycholla.com' >> "$GITHUB_STEP_SUMMARY"

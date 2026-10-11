@@ -64,12 +64,38 @@ function normalizeProfile(user, input) {
   });
   return { id: user.id, display_name: user.display_name, characters };
 }
-async function providerJson(fetcher, path, init = {}) {
-  const response = await fetcher(`${PROVIDER}${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(15000) });
-  if (!response.ok) throw new Error('Provider request failed');
-  const text = await response.text();
-  if (text.length > 200000) throw new Error('Provider response too large');
-  return JSON.parse(text);
+const oauthErrors = new Set(['invalid_client', 'invalid_grant', 'invalid_request', 'invalid_scope',
+  'unauthorized_client', 'unsupported_grant_type', 'server_error', 'temporarily_unavailable']);
+class SignInFailure extends Error {
+  constructor(stage, reason, status = null, oauthError = null) {
+    super('Sign-in failed');
+    this.diagnostic = { stage, reason, status, oauth_error: oauthError };
+    this.reference = [stage, reason, status, oauthError].filter(value => value !== null).join('-');
+  }
+}
+function reportFailure(error, stage) {
+  const failure = error instanceof SignInFailure ? error : new SignInFailure(stage, 'failed');
+  // Only constants, HTTP status and allowlisted OAuth codes; never raw exceptions or bodies.
+  console.error(JSON.stringify({ event: 'studium_auth_failure', reference: failure.reference, ...failure.diagnostic }));
+  return failure.reference;
+}
+async function providerJson(fetcher, stage, path, init = {}) {
+  let response, text;
+  try {
+    response = await fetcher(`${PROVIDER}${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(15000) });
+    text = await response.text();
+  } catch { throw new SignInFailure(stage, 'network'); }
+  if (text.length > 200000) throw new SignInFailure(stage, 'size', response.status);
+  let body;
+  try { body = JSON.parse(text); }
+  catch {
+    throw new SignInFailure(stage, response.ok ? 'json' : 'http', response.status);
+  }
+  if (!response.ok) {
+    const code = stage === 'token' && oauthErrors.has(body?.error) ? body.error : null;
+    throw new SignInFailure(stage, 'http', response.status, code);
+  }
+  return body;
 }
 async function snapshot(env, current) {
   const account = await stmt(env, 'SELECT * FROM accounts WHERE id = ?', current.account_id).first();
@@ -94,20 +120,23 @@ async function callback(request, env, config, fetcher) {
   const code = url.searchParams.get('code');
   if (!validString(code, 2048) || url.searchParams.getAll('code').length !== 1) return redirect('/account?error=invalid_state', [clear]);
   let accessToken;
+  let stage = 'token';
   try {
-    const token = await providerJson(fetcher, '/oauth/token', { method: 'POST',
+    const token = await providerJson(fetcher, 'token', '/oauth/token', { method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
       body: new URLSearchParams({ grant_type: 'authorization_code', client_id: env.XIVAUTH_CLIENT_ID,
         client_secret: env.XIVAUTH_CLIENT_SECRET, code, code_verifier: flow.verifier,
         redirect_uri: `${config.origin}/auth/callback` }) });
-    if (!validString(token.access_token, 4096) || String(token.token_type).toLowerCase() !== 'bearer') throw new Error('Invalid token response');
+    if (!validString(token?.access_token, 4096) || String(token?.token_type).toLowerCase() !== 'bearer') throw new SignInFailure('token', 'response');
     accessToken = token.access_token;
     const headers = { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' };
     const [user, characters] = await Promise.all([
-      providerJson(fetcher, '/api/v1/user', { headers }),
-      providerJson(fetcher, '/api/v1/characters', { headers }),
+      providerJson(fetcher, 'user', '/api/v1/user', { headers }),
+      providerJson(fetcher, 'characters', '/api/v1/characters', { headers }),
     ]);
+    stage = 'profile';
     const profile = normalizeProfile(user, characters);
+    stage = 'database';
     const raw = randomToken();
     const previous = await session(request, env, config);
     const timestamp = now();
@@ -123,9 +152,9 @@ async function callback(request, env, config, fetcher) {
     if (previous) statements.push(stmt(env, 'DELETE FROM sessions WHERE token_hash = ?', previous.token_hash));
     await env.DB.batch(statements);
     return redirect('/account', [clear, cookie(config, 'session', raw, SESSION_SECONDS)]);
-  } catch {
-    // Never log authorization codes, tokens, secrets, or raw upstream error bodies.
-    return redirect('/account?error=provider', [clear]);
+  } catch (error) {
+    const reference = reportFailure(error, stage);
+    return redirect(`/account?error=provider&ref=${reference}`, [clear]);
   } finally {
     // Profile access is needed only during sign-in. No access/refresh token is stored.
     if (accessToken) {
@@ -200,6 +229,9 @@ export async function handle(request, env, fetcher = fetch) {
 export default {
   async fetch(request, env) {
     try { return await handle(request, env); }
-    catch { return reply({ error: 'Account services are temporarily unavailable. Please try again.' }, 503); }
+    catch (error) {
+      reportFailure(error, 'request');
+      return reply({ error: 'Account services are temporarily unavailable. Please try again.' }, 503);
+    }
   },
 };

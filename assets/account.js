@@ -69,7 +69,10 @@
       if (isAccount) {
         const url = new URL(window.location.href);
         const message = errors[url.searchParams.get('error')];
-        if (message) status(message);
+        const reference = url.searchParams.get('ref') || '';
+        const safeReference = /^(token|user|characters|profile|database)-(failed|network|size|json|http|response)(-[1-5][0-9]{2})?(-(invalid_client|invalid_grant|invalid_request|invalid_scope|unauthorized_client|unsupported_grant_type|server_error|temporarily_unavailable))?$/.test(reference);
+        if (message) status(`${message}${url.searchParams.get('error') === 'provider' && safeReference ? ` Reference: ${reference}.` : ''}`);
+        url.searchParams.delete('ref');
         if (url.searchParams.has('error')) { url.searchParams.delete('error'); history.replaceState(null, '', url); }
       }
     } catch { status('Sign-in is temporarily unavailable. You can still use Chatpendium.'); }

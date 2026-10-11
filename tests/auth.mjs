@@ -10,6 +10,8 @@ const hash = value => createHash('sha256').update(value).digest('base64url');
 const character = (key, extra = {}) => ({ persistent_key: key, lodestone_id: 12345,
   name: `Character ${key}`, home_world: 'Balmung', data_center: 'Crystal', verified_at: '2026-10-01T12:00:00Z', ...extra });
 function fixture(t) {
+  const logs = [];
+  t.mock.method(console, 'error', line => logs.push(JSON.parse(line)));
   const db = new DatabaseSync(':memory:');
   db.exec(readFileSync(new URL('../migrations/0001_accounts.sql', import.meta.url), 'utf8'));
   t.after(() => db.close());
@@ -32,9 +34,13 @@ function fixture(t) {
   let profile = { id: 'user-a', display_name: 'Adventurer', email: 'private@example.com' };
   let characters = [character('a'), character('b'), character('unverified', { verified_at: null })];
   let failure;
+  let failureResponse;
   const fetcher = async (url, init) => {
     const path = new URL(url).pathname; calls.push({ path, init });
-    if (failure === path) return Response.json({ error: 'sensitive upstream failure' }, { status: 500 });
+    if (failure === path) {
+      if (failureResponse instanceof Error) throw failureResponse;
+      return failureResponse || Response.json({ error: 'sensitive upstream failure' }, { status: 500 });
+    }
     if (path === '/oauth/token') return Response.json({ access_token: 'provider-private-token', token_type: 'Bearer', refresh_token: 'unused-refresh' });
     if (path === '/api/v1/user') return Response.json(profile);
     if (path === '/api/v1/characters') return Response.json(characters);
@@ -59,8 +65,9 @@ function fixture(t) {
   const post = (path, signed, body = {}, headers = {}) => request(path, { method: 'POST', headers: {
     Cookie: signed.cookie, Origin: origin, 'Content-Type': 'application/json', 'X-CSRF-Token': signed.data.csrf_token, ...headers,
   }, body: JSON.stringify(body) });
-  return { db, env, calls, request, start, finish, login, post,
-    setProfile: value => { profile = value; }, setCharacters: value => { characters = value; }, fail: path => { failure = path; } };
+  return { db, env, calls, logs, request, start, finish, login, post,
+    setProfile: value => { profile = value; }, setCharacters: value => { characters = value; },
+    fail: (path, response) => { failure = path; failureResponse = response; } };
 }
 
 test('login uses S256, browser-bound state, fixed callback, minimal scopes and secure cookies', async t => {
@@ -132,9 +139,54 @@ test('provider denial and failure give generic errors and no account session', a
   assert.equal(f.calls.length, 0);
   f.fail('/api/v1/characters');
   const response = await f.finish(await f.start());
-  assert.equal(response.headers.get('Location'), '/account?error=provider');
+  assert.equal(response.headers.get('Location'), '/account?error=provider&ref=characters-http-500');
   assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions').get().n, 0);
   assert.equal(f.calls.at(-1).path, '/oauth/revoke');
+});
+
+test('token rejection reports only allowlisted codes and consumes the failed flow', async t => {
+  const f = fixture(t);
+  f.fail('/oauth/token', Response.json({ error: 'invalid_client', error_description: 'private-secret echoed here' }, { status: 401 }));
+  const flow = await f.start();
+  const response = await f.finish(flow);
+  assert.equal(response.headers.get('Location'), '/account?error=provider&ref=token-http-401-invalid_client');
+  assert.deepEqual(f.logs, [{ event: 'studium_auth_failure', reference: 'token-http-401-invalid_client',
+    stage: 'token', reason: 'http', status: 401, oauth_error: 'invalid_client' }]);
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions').get().n, 0);
+  assert.equal((await f.finish(flow)).headers.get('Location'), '/account?error=invalid_state');
+  assert.equal(f.calls.length, 1);
+});
+
+test('unexpected response bodies and network exceptions never enter logs or redirects', async t => {
+  const f = fixture(t);
+  for (const [response, reference] of [
+    [Response.json({ error: 'private-secret', access_token: 'private-token' }, { status: 400 }), 'token-http-400'],
+    [new Response('<html>private-secret</html>', { status: 403 }), 'token-http-403'],
+    [new Response('private-token'), 'token-json-200'],
+    [new Error('private-secret'), 'token-network'],
+    [Response.json(null), 'token-response'],
+  ]) {
+    f.fail('/oauth/token', response);
+    const result = await f.finish(await f.start());
+    assert.equal(result.headers.get('Location'), `/account?error=provider&ref=${reference}`);
+    assert.equal(f.logs.at(-1).reference, reference);
+  }
+  assert.doesNotMatch(JSON.stringify(f.logs), /private-secret|private-token|valid-code|test-private-secret/);
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM accounts').get().n, 0);
+});
+
+test('profile and database failures remain distinct and revoke the provider token', async t => {
+  const f = fixture(t);
+  f.setProfile({ id: 'user-a', display_name: null });
+  assert.equal((await f.finish(await f.start())).headers.get('Location'), '/account?error=provider&ref=profile-failed');
+  assert.equal(f.calls.at(-1).path, '/oauth/revoke');
+  f.setProfile({ id: 'user-a', display_name: 'Adventurer' });
+  const flow = await f.start();
+  f.env.DB.batch = async () => { throw new Error('private database error'); };
+  assert.equal((await f.finish(flow)).headers.get('Location'), '/account?error=provider&ref=database-failed');
+  assert.equal(f.calls.at(-1).path, '/oauth/revoke');
+  assert.equal(f.db.prepare('SELECT count(*) AS n FROM sessions').get().n, 0);
+  assert.doesNotMatch(JSON.stringify(f.logs), /private database error/);
 });
 
 test('refresh reconciles shared characters and preserves only valid selection', async t => {

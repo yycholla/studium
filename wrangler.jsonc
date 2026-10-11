@@ -1,6 +1,14 @@
 {
   "name": "studium",
   "compatibility_date": "2026-10-10",
+  "observability": {
+    "redact_query_string": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    }
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

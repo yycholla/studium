@@ -27,7 +27,7 @@ Devenv installs dependencies when you enter the environment; it does not start a
 
 ## Automatic production deployments
 
-The **Studium website** GitHub Actions workflow runs the same devenv checks on pull requests and pushes to `main`. After a successful main build, it downloads that build's static artifact, applies D1 migrations, deploys the Worker and assets, and checks the public health/account routes. Runs are serialized so migrations and deployments do not overlap. Manual **Run workflow** on `main` follows the same checks and deployment path.
+The **Studium website** GitHub Actions workflow runs the same devenv checks on pull requests and pushes to `main`. After a successful main build, it downloads that build's static artifact, applies D1 migrations, deploys the Worker and assets, and checks the public health/account routes and anonymous auth configuration endpoint. Runs are serialized so migrations and deployments do not overlap. Manual **Run workflow** on `main` follows the same checks and deployment path. A successful deployment confirms auth configuration is present; it does not prove the OAuth credentials are accepted. See [sign-in diagnostics](XIVAUTH.md#diagnosing-failed-sign-ins) for provider failures.
 
 Add these **repository Actions secrets** at [Studium's Actions settings](https://github.com/yycholla/studium/settings/secrets/actions):
 
