@@ -26,7 +26,7 @@ jobs:
       - name: Validate and snapshot public collection catalogs
         run: node tests/collect-live.mjs --export
       - name: Verify public Lodestone roster formats
-        run: node tests/rosters-runtime.mjs --live
+        run: devenv shell -- node tests/rosters-runtime.mjs --live
       - name: Check and build in devenv
         run: devenv shell -- studium-check
       - name: Verify lockfiles stayed unchanged
@@ -88,7 +88,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node tests/rosters-edge.mjs
+        run: devenv shell -- node tests/rosters-edge.mjs
       - name: Apply D1 migrations and deploy checked build
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
