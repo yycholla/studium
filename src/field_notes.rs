@@ -60,12 +60,12 @@ pub async fn field_notes() -> Result {
                         </section>
                         <details class="compatibility">
                             <summary>"How collection sync works"</summary>
-                            <p>"Your selected XIVAuth character supplies the Lodestone ID. Field Notes checks public collection data from FFXIV Collect automatically when you open this page or switch characters, at most once an hour. While this page is open, it checks again periodically. FFXIV Collect refreshes stale Lodestone data on its own schedule, so new items may take several hours to appear."</p>
+                            <p>"Your selected XIVAuth character supplies the Lodestone ID. Your browser checks public collection data from FFXIV Collect automatically when you open this page or switch characters, at most once an hour. While this page is open, it checks again periodically. FFXIV Collect refreshes stale Lodestone data on its own schedule, so new items may take several hours to appear."</p>
                             <p>"Mounts, minions, emotes, and facewear can sync when their Lodestone collections and FFXIV Collect profile are public. A character not yet tracked needs to be added on FFXIV Collect first. Private or unavailable collections have unknown ownership. Orchestrion rolls and other private collections are not included in this version."</p>
                             <p>"Wishlists and notes belong to each character. Collected goals stay in your journal and update automatically; there is no manual completion checkbox."</p>
                             <a href="https://ffxivcollect.com/faq" target="_blank" rel="noopener noreferrer">"Collection visibility help ↗"</a>
                         </details>
-                        <p class="field-credit">"Collection data and icons from "<a href="https://ffxivcollect.com/" target="_blank" rel="noopener noreferrer">"FFXIV Collect"</a>". Sources are community maintained."</p>
+                        <p class="field-credit">"Collection data and icons from "<a href="https://ffxivcollect.com/" target="_blank" rel="noopener noreferrer">"FFXIV Collect"</a>". Sources are community maintained. The catalog refreshes with the daily site build."</p>
                     </main>
                 </div>
                 crate::pages::site_footer()

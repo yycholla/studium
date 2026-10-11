@@ -112,7 +112,8 @@
     const groupFor = item => sourceGroup ? sourceTitle(item) : kinds[item.kind];
     items.sort((a, b) => groupFor(a).localeCompare(groupFor(b)) || a.name.localeCompare(b.name));
     const container = $('field-results'); container.replaceChildren(); container.setAttribute('aria-busy', String(catalogLoading));
-    $('field-count').textContent = `${items.length} ${wishlist ? 'goals' : 'collectibles'}${catalogErrors.length ? ' · Some collections unavailable' : [...catalogs.values()].some(c => c.stale) ? ' · Cached catalog' : ''}`;
+    const dates = [...catalogs.values()].map(c => c.fetched_at).filter(Boolean);
+    $('field-count').textContent = `${items.length} ${wishlist ? 'goals' : 'collectibles'}${catalogErrors.length ? ' · Some collections unavailable' : [...catalogs.values()].some(c => c.stale) ? ' · Cached catalog' : ''}${dates.length ? ` · Catalog updated ${new Date(Math.min(...dates) * 1000).toLocaleDateString()}` : ''}`;
     $('field-retry').hidden = !catalogErrors.length; $('field-retry').disabled = catalogLoading;
     $('field-more').hidden = items.length <= limit;
     const groups = new Map();
@@ -150,12 +151,36 @@
     finally { if (version === generation) { stateLoading = false; renderSync(); } }
     if (version === generation && journal && journal.sync.next_check_at * 1000 <= Date.now()) await sync();
   }
+  async function readCollections(lodestoneId) {
+    try {
+      const response = await fetch(`https://ffxivcollect.com/api/characters/${lodestoneId}?ids=1&latest=1`, {
+        credentials: 'omit', mode: 'cors', redirect: 'error', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000),
+      });
+      const body = await response.text();
+      if (body.length > 1000000) return { failure: 'unavailable' };
+      const data = JSON.parse(body);
+      if (!response.ok) {
+        if (response.status === 403 && data.status === 403 && data.error === 'Character is set to private') return { failure: 'private' };
+        if (response.status === 404 && data.status === 404 && data.error === 'Not found') return { failure: 'not_found' };
+        return { failure: 'unavailable' };
+      }
+      // Send only this journal's supported fields, never unrelated provider profile data.
+      const profile = { id: data.id, last_parsed: data.last_parsed };
+      for (const kind of Object.keys(kinds)) {
+        const value = data[kind];
+        if (value) profile[kind] = { public: value.public, count: value.count, ids: value.public === true ? value.ids : null };
+      }
+      return { profile };
+    } catch { return { failure: 'unavailable' }; }
+  }
   async function sync() {
     if (!character || syncing || busy || !journal || journal.sync.next_check_at * 1000 > Date.now()) return;
     const version = generation, key = character.persistent_key;
     syncing = true; renderSync();
     try {
-      const data = await api('sync', { character_key: key });
+      const report = await readCollections(character.lodestone_id);
+      if (version !== generation) return;
+      const data = await api('sync', { character_key: key, ...report });
       if (version !== generation) return;
       // A goal mutation may have completed while this slower sync was in flight.
       journal = { ...data, goals: journal?.goals || data.goals };

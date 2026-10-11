@@ -73,6 +73,18 @@ export function normalizeCollections(data, lodestoneId) {
   return { source_updated_at: data.last_parsed, collections };
 }
 async function catalog(env, kind, fetcher) {
+  // The build's validated public snapshot is served through our own asset binding.
+  // This also keeps browsers usable when the provider rejects Worker-origin requests.
+  if (env.ASSETS) {
+    const response = await env.ASSETS.fetch(new Request(`${env.SITE_ORIGIN}/data/field-notes/${kind}.json`));
+    if (response.ok) {
+      try {
+        const data = await response.json();
+        if (data.kind !== kind || !Number.isSafeInteger(data.fetched_at) || data.fetched_at <= 0) throw new CollectError(502, 'invalid-build');
+        return { kind, items: normalizeCatalog({count:data.items?.length,results:data.items}), fetched_at:data.fetched_at, stale:data.fetched_at + 86400 <= now() };
+      } catch { throw new CollectError(503, 'invalid-build'); }
+    }
+  }
   let failure;
   let row = await stmt(env, 'SELECT * FROM field_catalogs WHERE kind = ?', kind).first();
   if (!row || row.next_check_at <= now()) {
@@ -101,13 +113,23 @@ async function state(env, accountId, character) {
     sync: { status: row?.status || 'pending', checked_at: row?.checked_at || null, next_check_at: row?.next_check_at || 0,
       snapshot: row?.payload ? JSON.parse(row.payload) : null } };
 }
-async function sync(env, accountId, character, fetcher) {
+async function sync(env, accountId, character, fetcher, input) {
   const args = [accountId, character.lodestone_id];
   await stmt(env, 'INSERT OR IGNORE INTO field_collections (account_id, lodestone_id) VALUES (?, ?)', ...args).run();
   const lock = await stmt(env, 'UPDATE field_collections SET next_check_at = ? WHERE account_id = ? AND lodestone_id = ? AND next_check_at <= ? RETURNING account_id', now() + 90, ...args, now()).first();
   if (lock) {
     try {
-      const snapshot = normalizeCollections(await collect(fetcher, `characters/${character.lodestone_id}?ids=1&latest=1`), character.lodestone_id);
+      let profile;
+      if (Object.hasOwn(input, 'profile')) profile = input.profile;
+      else if (input.failure) {
+        const error = new CollectError(503);
+        if (input.failure === 'private') error.profileStatus = 403;
+        if (input.failure === 'not_found') error.profileStatus = 404;
+        throw error;
+      } else profile = await collect(fetcher, `characters/${character.lodestone_id}?ids=1&latest=1`);
+      const snapshot = normalizeCollections(profile, character.lodestone_id);
+      // Advisory personal progress only: never use browser-reported collections for authorization.
+      snapshot.reported_by = Object.hasOwn(input, 'profile') ? 'browser' : 'provider';
       await stmt(env, "UPDATE field_collections SET payload = ?, status = 'ready', checked_at = ?, next_check_at = ? WHERE account_id = ? AND lodestone_id = ?", JSON.stringify(snapshot), now(), now() + 3600, ...args).run();
     } catch (error) {
       const status = error.profileStatus === 403 ? 'private' : error.profileStatus === 404 ? 'not_found' : 'unavailable';
@@ -135,7 +157,7 @@ export async function handleFieldNotes(request, env, current, config, fetcher = 
     if (request.headers.get('Origin') !== config.origin || request.headers.get('X-CSRF-Token') !== current.csrf_token) return reply({ error: 'Please refresh this page and try again.' }, 403);
     if (!request.headers.get('Content-Type')?.startsWith('application/json')) return reply({ error: 'Expected JSON.' }, 415);
     const body = await request.text();
-    if (body.length > 4096) return reply({ error: 'Request too large.' }, 413);
+    if (body.length > (path.endsWith('/sync') ? 256000 : 4096)) return reply({ error: 'Request too large.' }, 413);
     try { input = JSON.parse(body); } catch { return reply({ error: 'Invalid JSON.' }, 400); }
   }
   const key = method === 'GET' ? url.searchParams.get('character') : input?.character_key;
@@ -143,7 +165,14 @@ export async function handleFieldNotes(request, env, current, config, fetcher = 
   const character = await stmt(env, 'SELECT persistent_key, lodestone_id FROM characters WHERE account_id = ? AND persistent_key = ?', current.account_id, key).first();
   if (!character) return reply({ error: 'That character is not linked to your account.' }, 403);
   if (method === 'GET') return reply(await state(env, current.account_id, character));
-  if (path.endsWith('/sync')) return reply(await sync(env, current.account_id, character, fetcher));
+  if (path.endsWith('/sync')) {
+    if (input.failure && !['private','not_found','unavailable'].includes(input.failure)) return reply({error:'Invalid collection status.'},400);
+    if (Object.hasOwn(input, 'profile')) {
+      try { normalizeCollections(input.profile, character.lodestone_id); }
+      catch { return reply({error:'Collection data does not match this character.'},400); }
+    }
+    return reply(await sync(env, current.account_id, character, fetcher, input));
+  }
   if (!KINDS.includes(input.kind) || !validId(input.item_id) || !['save', 'remove'].includes(input.action)) return reply({ error: 'Choose a valid collection goal.' }, 400);
   const args = [current.account_id, character.lodestone_id, input.kind, input.item_id];
   if (input.action === 'remove') {

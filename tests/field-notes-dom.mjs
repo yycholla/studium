@@ -15,8 +15,14 @@ const state = (key, ready=false) => ({character_key:key,goals:[],sync:{status:re
 async function setup(t,{data=signed(),override,realHeader=false}={}) {
   const dom=new JSDOM(html,{url:'https://studium.yycholla.com/field-notes',runScripts:'outside-only',pretendToBeVisual:true}); t.after(()=>dom.window.close());
   const w=dom.window,d=w.document,calls=[]; const states=new Map([['one',state('one')],['two',state('two')]]);
+  w.AbortSignal = AbortSignal;
   w.fetch=async (path,init={})=>{
     calls.push({path,init}); const body=init.body?JSON.parse(init.body):null;
+    if(path.startsWith('https://ffxivcollect.com/')) {
+      assert.equal(init.credentials,'omit');assert.equal(init.mode,'cors');
+      const id=Number(new URL(path).pathname.split('/').at(-1));
+      return Response.json({id,last_parsed:'2026-10-10T12:00:00Z',mounts:{public:true,count:id===12345?1:0,ids:id===12345?[1]:[]},minions:{public:false,count:0,ids:[999]}});
+    }
     const custom=await override?.(path,body); if(custom) return custom;
     if(path==='/api/auth/session') return Response.json(data);
     if(path==='/api/auth/character') {data.account.selected_character_key=body.persistent_key;return Response.json({ok:true});}
@@ -24,7 +30,7 @@ async function setup(t,{data=signed(),override,realHeader=false}={}) {
     if(path.includes('/catalog?')) { const kind=new URL(path,w.location.origin).searchParams.get('kind');return Response.json({kind,items:[{id:1,name:kind==='mounts'?'Aithon <script>':'Little '+kind,icon:'https://evil.invalid/image',patch:'2.2',sources:[{type:'Trial',text:'The Bowl of Embers'}]}]}); }
     if(path.includes('/state?')) return Response.json(states.get(new URL(path,w.location.origin).searchParams.get('character')));
     assert.equal(init.headers['X-CSRF-Token'],'csrf-test');
-    if(path.endsWith('/sync')) {const next=state(body.character_key,true);next.goals=states.get(body.character_key).goals;states.set(body.character_key,next);return Response.json(next);}
+    if(path.endsWith('/sync')) {assert.ok(body.profile);assert.equal(body.profile.minions.ids,null);const next=state(body.character_key,true);next.goals=states.get(body.character_key).goals;states.set(body.character_key,next);return Response.json(next);}
     if(path.endsWith('/goal')) {const current=states.get(body.character_key);current.goals=current.goals.filter(g=>g.kind!==body.kind||g.item_id!==body.item_id);if(body.action==='save')current.goals.push({kind:body.kind,item_id:body.item_id,note:body.note});return Response.json(current);}
     throw Error('Unexpected '+path);
   };

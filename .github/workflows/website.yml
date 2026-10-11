@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: "17 9 * * *"
 
 permissions:
   contents: read
@@ -21,8 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/devenv
-      - name: Verify public collection provider contract
-        run: node tests/collect-live.mjs
+      - name: Validate and snapshot public collection catalogs
+        run: node tests/collect-live.mjs --export
       - name: Check and build in devenv
         run: devenv shell -- studium-check
       - name: Verify lockfiles stayed unchanged
@@ -32,7 +34,7 @@ jobs:
           npm install --no-save --package-lock=false playwright@1.59.1
           npx playwright install --with-deps chromium
       - name: Check Field Notes in Chromium
-        run: node tests/field-notes-browser.mjs
+        run: node tests/field-notes-browser.mjs --live-provider
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4

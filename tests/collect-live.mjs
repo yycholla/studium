@@ -1,4 +1,5 @@
 // Public catalog contract check; no character IDs, authentication or private data.
+import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as delay } from 'node:timers/promises';
 import { normalizeCatalog, KINDS } from '../worker/field-notes.mjs';
 const once = process.argv.includes('--once');
@@ -13,6 +14,11 @@ for (const kind of KINDS) {
     if(response.ok) {
       const items = studium ? data?.items : normalizeCatalog(data);
       if(!Array.isArray(items) || !items.length) throw new Error(`Invalid public catalog: ${kind}`);
+      if (process.argv.includes('--export') && !studium) {
+        const dir = new URL('../dist/data/field-notes/', import.meta.url);
+        await mkdir(dir, { recursive:true });
+        await writeFile(new URL(`${kind}.json`, dir), JSON.stringify({kind,items,fetched_at:Math.floor(Date.now()/1000)}));
+      }
       console.log(`${kind}: validated ${items.length} collectibles`); passed=true; break;
     }
     if(studium && !once && attempt < 5) await delay(15000);

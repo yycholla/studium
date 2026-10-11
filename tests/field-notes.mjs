@@ -22,7 +22,7 @@ function fixture(t) {
   db.prepare('INSERT INTO sessions VALUES (?,?,?,?)').run(createHash('sha256').update(token).digest('base64url'),'a',csrf,Math.floor(Date.now()/1000)+3600);
   const wrap = (sql, args = []) => ({ bind: (...args) => wrap(sql,args), first: async () => db.prepare(sql).get(...args) || null,
     all: async () => ({ results: db.prepare(sql).all(...args) }), run: async () => db.prepare(sql).run(...args) });
-  const env = { SITE_ORIGIN: origin, DB: { prepare: wrap }, ASSETS: { fetch: () => new Response('asset') } };
+  const env = { SITE_ORIGIN: origin, DB: { prepare: wrap }, ASSETS: { fetch: () => new Response('not found',{status:404}) } };
   const calls = []; let upstream = owned(), status = 200, catalogBad = false;
   const fetcher = async (url, init) => {
     calls.push({url,init});
@@ -32,7 +32,7 @@ function fixture(t) {
   };
   const req = (path, init = {}) => handle(new Request(`${origin}/api/field-notes/${path}`, { ...init, headers: { Cookie:`__Host-studium_session=${token}`, ...init.headers } }),env,fetcher);
   const post = (path, data = {}, headers = {}) => req(path,{method:'POST',headers:{Origin:origin,'X-CSRF-Token':csrf,'Content-Type':'application/json',...headers},body:JSON.stringify({character_key:'one',...data})});
-  return { db,calls,req,post,expire: () => db.exec('UPDATE field_collections SET next_check_at=0'), upstream: (data, code=200) => {upstream=data;status=code;}, badCatalog: () => {catalogBad=true;db.exec('UPDATE field_catalogs SET next_check_at=0, fetched_at=0');} };
+  return { db,env,calls,req,post,expire: () => db.exec('UPDATE field_collections SET next_check_at=0'), upstream: (data, code=200) => {upstream=data;status=code;}, badCatalog: () => {catalogBad=true;db.exec('UPDATE field_catalogs SET next_check_at=0, fetched_at=0');} };
 }
 const json = async response => { assert.equal(response.status,200,await response.clone().text()); return response.json(); };
 
@@ -117,4 +117,24 @@ test('journal cap allows edits/removals but rejects a 301st goal', async t => {
 test('normalizer rejects invalid identity/timestamp/IDs without exposing private data', () => {
   for (const data of [null,owned({last_parsed:null}),owned({mounts:{public:true,ids:[-1],count:1}})]) assert.throws(()=>normalizeCollections(data,'12345'));
   assert.deepEqual(normalizeCollections(owned({emotes:{public:false,ids:['secret'],count:1}}),'12345').collections.emotes.ids,null);
+});
+
+test('validated build catalogs serve through the Worker without upstream calls', async t => {
+  const f=fixture(t);
+  f.env.ASSETS.fetch = async request => {
+    assert.equal(new URL(request.url).pathname,'/data/field-notes/mounts.json');
+    return Response.json({kind:'mounts',fetched_at:1,items:[{id:1,name:'Company Chocobo',sources:[]}]});
+  };
+  const data=await json(await f.req('catalog?kind=mounts'));
+  assert.equal(data.items[0].id,1);assert.equal(data.stale,true);assert.equal(f.calls.length,0);
+  await json(await f.post('goal',{kind:'mounts',item_id:1,action:'save',note:''}));assert.equal(f.calls.length,0);
+});
+test('browser sync accepts only an owned character and validated advisory progress', async t => {
+  const f=fixture(t);
+  assert.equal((await f.post('sync',{profile:owned({id:67890})})).status,400);
+  assert.equal((await f.post('sync',{character_key:'other',profile:owned({id:98765})})).status,403);
+  const data=await json(await f.post('sync',{profile:owned()}));
+  assert.equal(data.sync.snapshot.reported_by,'browser');assert.deepEqual(data.sync.snapshot.collections.mounts.ids,[1]);assert.equal(f.calls.length,0);
+  f.expire();const stale=await json(await f.post('sync',{failure:'unavailable'}));assert.deepEqual(stale.sync.snapshot,data.sync.snapshot);
+  f.expire();const hidden=await json(await f.post('sync',{failure:'private'}));assert.equal(hidden.sync.snapshot,null);
 });

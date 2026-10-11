@@ -13,6 +13,10 @@ const examples={mounts:['Aithon','Boreas','Kirin','Nightmare'],minions:['Wind-up
 await context.route('**/*',async route=>{
   const url=new URL(route.request().url()),path=url.pathname;
   const json=data=>route.fulfill({json:data});
+  if(url.origin === 'https://ffxivcollect.com' && path.startsWith('/api/characters/')) {
+    const id=Number(path.split('/').at(-1));
+    return route.fulfill({headers:{'Access-Control-Allow-Origin':'*'},json:{id,last_parsed:'2026-10-10T18:00:00Z',...Object.fromEntries(['mounts','minions','emotes','facewear'].map(kind=>[kind,{public:kind!=='emotes',count:id===12345?1:0,ids:id===12345?[1]:[]}]))}});
+  }
   if(url.origin!==origin)return route.abort();
   if(path==='/api/auth/session')return json(account);
   if(path==='/api/auth/character'){account.account.selected_character_key=route.request().postDataJSON().persistent_key;return json({ok:true});}
@@ -42,5 +46,22 @@ try {
   assert.equal(await page.locator('.field-card').count(),0);
   await page.locator('#field-wishlist').click();await page.locator('#field-search').fill('Bowl of Embers');assert.equal(await page.locator('.field-card').count(),6);
   await page.locator('#field-group').selectOption('source');assert.equal(await page.locator('#field-group-hint').isVisible(),true);
+  if (process.argv.includes('--live-provider')) {
+    const live = await browser.newPage();
+    await live.route('https://studium.yycholla.com/__collect_probe', r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Public API CORS check</title>'}));
+    await live.goto('https://studium.yycholla.com/__collect_probe');
+    const result = await live.evaluate(async()=>{
+      const read = async path => {
+        const response = await fetch(`https://ffxivcollect.com/api/${path}`, {credentials:'omit',mode:'cors',redirect:'error',headers:{Accept:'application/json'},signal:AbortSignal.timeout(20000)});
+        return {status:response.status,data:await response.json()};
+      };
+      const catalog = await read('mounts?language=en');
+      const absent = await read('characters/0?ids=1');
+      return {catalogStatus:catalog.status,count:catalog.data.results?.length,characterStatus:absent.status,characterError:absent.data.error};
+    });
+    assert.equal(result.catalogStatus,200);assert.ok(result.count>0);
+    assert.equal(result.characterStatus,404);assert.equal(result.characterError,'Not found');
+    console.log('Live provider CORS verified from Studium origin: catalog and character API.');await live.close();
+  }
   assert.deepEqual(errors,[]);console.log('Field Notes browser QA passed: six widths, account menu, automatic sync, wishlist, search and grouping.');
 } finally {await browser.close();}
