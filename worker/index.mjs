@@ -82,7 +82,9 @@ function reportFailure(error, stage) {
 async function providerJson(fetcher, stage, path, init = {}) {
   let response, text;
   try {
-    response = await fetcher(`${PROVIDER}${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(15000) });
+    // Workers supports manual/follow only. Reject non-2xx responses below without
+    // forwarding credentials or bearer tokens to a redirect destination.
+    response = await fetcher(`${PROVIDER}${path}`, { ...init, redirect: 'manual', signal: AbortSignal.timeout(15000) });
     text = await response.text();
   } catch { throw new SignInFailure(stage, 'network'); }
   if (text.length > 200000) throw new SignInFailure(stage, 'size', response.status);
@@ -159,7 +161,7 @@ async function callback(request, env, config, fetcher) {
     // Profile access is needed only during sign-in. No access/refresh token is stored.
     if (accessToken) {
       try {
-        await fetcher(`${PROVIDER}/oauth/revoke`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000),
+        await fetcher(`${PROVIDER}/oauth/revoke`, { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(5000),
           body: new URLSearchParams({ token: accessToken, client_id: env.XIVAUTH_CLIENT_ID, client_secret: env.XIVAUTH_CLIENT_SECRET }) });
       } catch { /* The token is discarded even when the provider cannot revoke it. */ }
     }
@@ -235,3 +237,4 @@ export default {
     }
   },
 };
+

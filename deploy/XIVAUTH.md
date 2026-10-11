@@ -100,10 +100,13 @@ With `remote: false`, local Wrangler uses a separate local D1 database. Leaving 
 
 ## Checks
 
+The auth checks include the pinned Workers runtime (`workerd`, installed with Wrangler). They exercise the real outbound fetch implementation against a local mock provider, including credential-safe handling of token/profile/revocation redirects. No production credentials or external network are used. This catches Workers-only incompatibilities that Node mocks cannot detect.
+
 Requires Node 24 for the built-in SQLite test adapter:
 
 ```sh
 node tests/auth.mjs
+node tests/auth-runtime.mjs
 cargo test --workspace --locked
 cargo run --locked --example export
 npm install --no-save --package-lock=false jsdom@26.1.0
@@ -113,3 +116,4 @@ npx wrangler@4 deploy --dry-run
 ```
 
 Provider reference: [XIVAuth documentation](https://kazwolfe.notion.site/Documentation-128e77f0016c4901888ea1234678c37d). The current API contract was also checked against [the provider source](https://github.com/XIVAuth/XIVAuth): `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`, `/api/v1/user`, and `/api/v1/characters`.
+

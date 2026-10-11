@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "cargo run --locked --example export",
-    "test:auth": "node tests/auth.mjs",
+    "test:auth": "node tests/auth.mjs && node tests/auth-runtime.mjs",
     "test:dom": "node tests/dom.mjs && node tests/account-dom.mjs",
     "check": "bash deploy/check.sh",
     "dev": "npm run build && wrangler dev --port 8787",
@@ -21,3 +21,4 @@
     "wrangler": "4.149.0"
   }
 }
+
