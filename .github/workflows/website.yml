@@ -21,6 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/devenv
+      - name: Verify public collection provider contract
+        run: node tests/collect-live.mjs
       - name: Check and build in devenv
         run: devenv shell -- studium-check
       - name: Verify lockfiles stayed unchanged

@@ -7,59 +7,60 @@ function reply(body, status = 200) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie', 'X-Content-Type-Options': 'nosniff' } });
 }
 class CollectError extends Error {
-  constructor(status) { super('Collection service unavailable'); this.status = status; }
+  constructor(status, reason = 'http') { super('Collection service unavailable'); this.status = status; this.reference = `${reason}-${status}`; }
 }
 async function collect(fetcher, path) {
   let response;
   try { response = await fetcher(`${ORIGIN}/api/${path}`, { redirect: 'manual', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) }); }
-  catch { throw new CollectError(503); }
+  catch { throw new CollectError(503, 'network'); }
   if (!response.ok) throw new CollectError(response.status);
   // Bound upstream responses before decoding them.
   const reader = response.body?.getReader();
-  if (!reader) throw new CollectError(502);
+  if (!reader) throw new CollectError(502, 'invalid-data');
   const chunks = []; let size = 0;
   try {
     for (;;) {
       const { value, done } = await reader.read(); if (done) break;
       size += value.length;
-      if (size > 4_000_000) { await reader.cancel(); throw new CollectError(502); }
+      if (size > 4_000_000) { await reader.cancel(); throw new CollectError(502, 'invalid-data'); }
       chunks.push(value);
     }
     const bytes = new Uint8Array(size); let offset = 0;
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
     return JSON.parse(new TextDecoder().decode(bytes));
-  } catch { throw new CollectError(502); }
+  } catch { throw new CollectError(502, 'invalid-data'); }
 }
 function text(value, limit = 1000) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
 function image(value) {
   try { const url = new URL(value); return url.origin === ORIGIN && !url.username && !url.password ? url.href : null; }
   catch { return null; }
 }
-function normalizeCatalog(data) {
-  if (!Array.isArray(data?.results) || data.results.length > 10000 || data.results.length !== data.count) throw new CollectError(502);
+export function normalizeCatalog(data) {
+  if (!Array.isArray(data?.results) || data.results.length > 10000 || data.results.length !== data.count) throw new CollectError(502, 'invalid-data');
   const ids = new Set();
   return data.results.map(item => {
-    if (!validId(item.id) || ids.has(item.id) || !text(item.name)) throw new CollectError(502);
+    if (!validId(item.id) || ids.has(item.id) || !text(item.name)) throw new CollectError(502, 'invalid-data');
     ids.add(item.id);
     return { id: item.id, name: text(item.name, 200), icon: image(item.icon), patch: text(item.patch, 30),
       sources: Array.isArray(item.sources) ? item.sources.slice(0, 30).map(s => ({ type: text(s.type, 100), text: text(s.text) })).filter(s => s.text) : [] };
   });
 }
 export function normalizeCollections(data, lodestoneId) {
-  if (String(data?.id) !== lodestoneId || !Number.isFinite(Date.parse(data?.last_parsed))) throw new CollectError(502);
+  if (String(data?.id) !== lodestoneId || !Number.isFinite(Date.parse(data?.last_parsed))) throw new CollectError(502, 'invalid-data');
   const collections = {};
   for (const kind of KINDS) {
     const value = data[kind];
     // Some provider responses include IDs even for private collections. Never use those IDs.
     if (value?.public !== true) { collections[kind] = { visibility: value?.public === false ? 'private' : 'unknown', ids: null }; continue; }
     if (!Array.isArray(value.ids) || value.ids.length > 10000 || !value.ids.every(validId) || value.ids.length !== value.count) {
-      throw new CollectError(502);
+      throw new CollectError(502, 'invalid-data');
     }
     collections[kind] = { visibility: 'public', ids: [...new Set(value.ids)] };
   }
   return { source_updated_at: data.last_parsed, collections };
 }
 async function catalog(env, kind, fetcher) {
+  let failure;
   let row = await stmt(env, 'SELECT * FROM field_catalogs WHERE kind = ?', kind).first();
   if (!row || row.next_check_at <= now()) {
     await stmt(env, 'INSERT OR IGNORE INTO field_catalogs (kind) VALUES (?)', kind).run();
@@ -69,13 +70,15 @@ async function catalog(env, kind, fetcher) {
         const items = normalizeCatalog(await collect(fetcher, `${kind}?language=en`));
         const timestamp = now();
         await stmt(env, 'UPDATE field_catalogs SET payload = ?, fetched_at = ?, next_check_at = ? WHERE kind = ?', JSON.stringify(items), timestamp, timestamp + 21600, kind).run();
-      } catch {
+      } catch (error) {
+        failure = error;
+        console.warn(JSON.stringify({ event: 'studium_catalog_failure', kind, reference: error.reference || 'storage-or-schema' }));
         await stmt(env, 'UPDATE field_catalogs SET next_check_at = ? WHERE kind = ?', now() + 60, kind).run();
       }
     }
     row = await stmt(env, 'SELECT * FROM field_catalogs WHERE kind = ?', kind).first();
   }
-  if (!row?.payload) throw new CollectError(503);
+  if (!row?.payload) throw failure || new CollectError(503, 'retry');
   return { kind, items: JSON.parse(row.payload), fetched_at: row.fetched_at, stale: row.fetched_at + 21600 <= now() };
 }
 async function state(env, accountId, character) {
@@ -108,7 +111,7 @@ export async function handleFieldNotes(request, env, current, config, fetcher = 
     const kind = url.searchParams.get('kind');
     if (!KINDS.includes(kind)) return reply({ error: 'Choose a supported collection.' }, 400);
     try { return reply(await catalog(env, kind, fetcher)); }
-    catch { return reply({ error: 'FFXIV Collect is unavailable. Please try again shortly.' }, 503); }
+    catch (error) { return reply({ error: 'FFXIV Collect is unavailable. Please try again shortly.', reference: error.reference || 'storage-or-schema' }, 503); }
   }
   if (!['/api/field-notes/state', '/api/field-notes/sync', '/api/field-notes/goal'].includes(path)) return reply({ error: 'Not found.' }, 404);
   const method = path.endsWith('/state') ? 'GET' : 'POST';
