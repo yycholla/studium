@@ -19,7 +19,7 @@ test('invitation previews reveal no roster; explicit opt-in governs returned pro
   assert.notEqual(f.db.prepare('SELECT invite_hash FROM collection_groups').get().invite_hash,raw);
   assert.equal(made.group.members[0].sync,null);assert.equal(made.group.members[0].goals,null);
   assert.equal((await f.req('b',`/api/groups/detail?id=${id}`)).status,404);
-  const preview=await body(await f.post('b','preview',{invite:raw}));assert.deepEqual(Object.keys(preview.group).sort(),['expires_at','id','kind','name']);
+  const preview=await body(await f.post('b','preview',{invite:raw}));assert.deepEqual(Object.keys(preview.group).sort(),['collection_focus','expires_at','id','kind','name']);
   const joined=await body(await f.post('b','join',{invite:raw,...choices('b')}));assert.equal(joined.group.members.length,2);
   assert.equal(joined.group.members.find(m=>!m.self).goals,null);
   await body(await f.post('a','sharing',{group_id:id,...choices('a',{share_collections:true,share_wishlist:true})}));
@@ -92,4 +92,25 @@ test('full groups, expired invitations and duplicate characters cannot bypass jo
   const second=await create(f);
   f.db.exec("UPDATE characters SET lodestone_id='12345' WHERE account_id='c'");
   assert.equal((await f.post('c','join',{invite:invite(second),...choices('c')})).status,409);
+});
+
+test('collection focus persists for everyone and only the owner can change it',async t=>{
+  const f=fixture(t),made=await create(f,{collection_focus:'mounts'}),id=made.group.id;
+  assert.equal(made.group.collection_focus,'mounts');
+  assert.equal((await body(await f.req('a','/api/groups/list'))).groups[0].collection_focus,'mounts');
+  assert.equal((await body(await f.post('b','preview',{invite:invite(made)}))).group.collection_focus,'mounts');
+  const joined=await body(await f.post('b','join',{invite:invite(made),collection_focus:'emotes',...choices('b')}));
+  assert.equal(joined.group.collection_focus,'mounts');
+  assert.equal((await f.post('b','focus',{group_id:id,collection_focus:'minions'})).status,403);
+  assert.equal((await f.post('c','focus',{group_id:id,collection_focus:'minions'})).status,404);
+  assert.equal((await f.post('a','focus',{group_id:id,collection_focus:'minions'},{'X-CSRF-Token':'bad'})).status,403);
+  for(const value of ['unsupported',null,17,{},[]]) {
+    assert.equal((await f.post('a','focus',{group_id:id,collection_focus:value})).status,400);
+    assert.equal((await f.post('a','create',{name:'Invalid',kind:'friends',collection_focus:value,...choices('a')})).status,400);
+  }
+  for(const focus of ['minions','emotes','facewear','all','mounts']) {
+    await body(await f.post('a','focus',{group_id:id,collection_focus:focus}));
+    assert.equal((await body(await f.req('b',`/api/groups/detail?id=${id}`))).collection_focus,focus);
+  }
+  assert.equal((await create(f)).group.collection_focus,'all','Older clients keep the all-collections default');
 });

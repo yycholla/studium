@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { setImmediate as tick } from 'node:timers/promises';
+import { setImmediate as tick, setTimeout as delay } from 'node:timers/promises';
 import { JSDOM } from 'jsdom';
 import { fixture,choices,body,create,invite,origin } from './fixtures/groups-db.mjs';
 const html=await readFile(new URL('../dist/groups/index.html',import.meta.url),'utf8');
 const script=await readFile(new URL('../assets/groups.js',import.meta.url),'utf8');
 const planner=await readFile(new URL('../assets/group-planner.js',import.meta.url),'utf8');
 const settle=async()=>{for(let i=0;i<20;i++)await tick();};
+const until=async predicate=>{const deadline=Date.now()+3000;while(!predicate()){assert.ok(Date.now()<deadline,'Timed out waiting for the UI');await delay(5);}};
 async function setup(t,f,{account='a',hash='',override}={}) {
   const dom=new JSDOM(html,{url:`${origin}/groups${hash}`,runScripts:'outside-only',pretendToBeVisual:true});t.after(()=>dom.window.close());
   const w=dom.window,d=w.document;let current=account;
@@ -18,9 +19,9 @@ async function setup(t,f,{account='a',hash='',override}={}) {
     if(path.startsWith('/api/field-notes/catalog')){const kind=new URL(path,origin).searchParams.get('kind');return Response.json({kind,items:kind==='mounts'?[{id:1,name:'Aithon',sources:[{type:'Trial',text:'The Bowl of Embers (Extreme)'}]}]:[]});}
     return f.req(current,path,{...init,headers:{Origin:origin,...init.headers}});
   };
-  w.eval(planner);w.eval(script);await settle();
+  w.eval(planner);w.eval(script);await until(()=>account?!d.querySelector('#group-workspace').hidden&&!d.querySelector('#group-reload').disabled:d.querySelector('#group-auth-message').textContent.includes('Sign in'));await settle();
   const changeAccount=async next=>{current=next;w.dispatchEvent(new w.CustomEvent('studium:account',{detail:session()}));await settle();};
-  const submit=async form=>{form.dispatchEvent(new w.Event('submit',{cancelable:true,bubbles:true}));await settle();};
+  const submit=async form=>{await until(()=>!d.querySelector('#group-reload').disabled);form.dispatchEvent(new w.Event('submit',{cancelable:true,bubbles:true}));await until(()=>!d.querySelector('#group-reload').disabled);await settle();};
   return {w,d,changeAccount,submit};
 }
 test('creation defaults to no sharing; saving progress creates matches and changing character resets consent',async t=>{
@@ -60,4 +61,22 @@ test('sharing revocation is reflected on refresh; a stale poll cannot undo a sha
   intercept=true;w.dispatchEvent(new w.Event('focus'));await settle();assert.ok(resolve);
   const form=d.querySelector('#group-sharing');form.elements.share_collections.checked=false;await submit(form);assert.equal(d.querySelectorAll('.group-run').length,0);
   resolve(Response.json(made.group));await settle();assert.equal(d.querySelectorAll('.group-run').length,0);
+});
+
+test('saved mount focus initializes the view; personal category choices survive refresh without changing the group',async t=>{
+  const f=fixture(t);f.sync('a','12345',[]);f.goal('a','12345','minions',2);
+  const {d,w,submit}=await setup(t,f,{override:path=>path.includes('/catalog?kind=minions')?Response.json({kind:'minions',items:[{id:2,name:'Fat Cat',sources:[{type:'Dungeon',text:'Minion duty'}]}]}):null});
+  const form=d.querySelector('#group-create');form.elements.name.value='Friday mounts';form.elements.collection_focus.value='mounts';
+  form.elements.share_collections.checked=true;form.elements.share_wishlist.checked=true;await submit(form);
+  assert.equal(d.querySelector('#group-collection').value,'group');assert.match(d.querySelector('#group-collection-default').textContent,/Mounts/);
+  assert.match(d.querySelector('#group-results').textContent,/Aithon/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Fat Cat/);
+  const category=d.querySelector('#group-collection');category.value='minions';category.dispatchEvent(new w.Event('change'));
+  assert.match(d.querySelector('#group-results').textContent,/Fat Cat/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Aithon/);
+  d.querySelector('#group-refresh').click();await settle();assert.equal(category.value,'minions');
+  assert.equal(f.db.prepare('SELECT collection_focus FROM collection_groups').get().collection_focus,'mounts');
+  const focus=d.querySelector('#group-focus-form');focus.elements.collection_focus.value='emotes';await submit(focus);
+  assert.equal(category.value,'minions','Owner settings must not override the personal view');
+  assert.match(d.querySelector('#group-collection-default').textContent,/Emotes/);
+  category.value='group';category.dispatchEvent(new w.Event('change'));assert.equal(d.querySelectorAll('.group-run').length,0);
+  d.querySelector('[data-group]').click();await settle();assert.equal(d.querySelector('#group-focus-value').value,'emotes');
 });

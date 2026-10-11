@@ -11,11 +11,11 @@
     if (collection?.visibility !== 'public' || !Array.isArray(collection.ids)) return 'unknown';
     return collection.ids.includes(id) ? 'owned' : 'missing';
   }
-  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', query = '', wishlistOnly = false, everyone = false, timestamp = Date.now()} = {}) {
+  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', collection = 'all', query = '', wishlistOnly = false, everyone = false, timestamp = Date.now()} = {}) {
     const participants = members.filter(m=>selected.includes(m.id) && m.character), groups = new Map(), search = normalize(query);
     if (!participants.length) return [];
     for (const catalog of catalogs) for (const item of catalog.items) {
-      if (!kinds.includes(catalog.kind)) continue;
+      if (!kinds.includes(catalog.kind) || (collection !== 'all' && catalog.kind !== collection)) continue;
       const benefits = [];
       for (const member of participants) {
         const state = ownership(member,catalog.kind,item.id,timestamp);

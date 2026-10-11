@@ -3,6 +3,7 @@
   const $ = id => document.getElementById(id);
   const node = (tag, text, cls) => { const e=document.createElement(tag); if(text)e.textContent=text;if(cls)e.className=cls;return e; };
   const typeNames = {friends:'Friends',fc:'Free company',party:'Temporary party'};
+  const collectionNames = {all:'All collections',mounts:'Mounts',minions:'Minions',emotes:'Emotes',facewear:'Facewear'};
   const kindNames = {mounts:'Mount',minions:'Minion',emotes:'Emote',facewear:'Facewear'};
   let account=null, csrf=null, generation=0, reads=0, accountEvents=0, busy=false, active=null, groups=[], catalogs=[], catalogErrors=0, catalogLoading=false, selected=new Set(), limit=12;
   let invitation='', preview=null;
@@ -53,18 +54,23 @@
   const sharing=form=>({character_key:form.elements.character_key.value,share_collections:form.elements.share_collections.checked,share_wishlist:form.elements.share_wishlist.checked});
   function renderList() {
     const target=$('group-list');target.replaceChildren();
-    for(const group of groups){const button=node('button',group.name,'group-choice');button.type='button';button.dataset.group=group.id;button.setAttribute('aria-pressed',String(group.id===active?.id));button.append(node('span',`${typeNames[group.kind]} · ${group.member_count} members`));button.addEventListener('click',()=>run(()=>open(group.id)));target.append(button);}
+    for(const group of groups){const button=node('button',group.name,'group-choice');button.type='button';button.dataset.group=group.id;button.setAttribute('aria-pressed',String(group.id===active?.id));button.append(node('span',`${typeNames[group.kind]} · ${collectionNames[group.collection_focus || 'all']} · ${group.member_count} members`));button.addEventListener('click',()=>run(()=>open(group.id)));target.append(button);}
     if(!groups.length)target.append(node('p','No groups yet. Create one below or follow an invitation.','group-small'));
   }
   async function loadList() {const data=await api('list');groups=data.groups;renderList();}
   function clearDetail() {active=null;selected.clear();for(const id of ['group-name','group-type','group-expiry','group-result-count'])$(id).textContent='';$('group-detail').hidden=true;$('group-empty').hidden=false;$('group-members').replaceChildren();$('group-results').replaceChildren();$('group-sharing-fields').replaceChildren();$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;}
   async function open(id) {const data=await api(`detail?id=${encodeURIComponent(id)}`);accept(data,true);}
   function accept(data, full=false) {
-    const changed=active?.id!==data.id;active=data;
+    const changed=active?.id!==data.id, focusChanged=active?.collection_focus!==data.collection_focus;active=data;
+    if(changed)$('group-collection').value='group';
+    if(changed||focusChanged)limit=12;
+    $('group-collection-default').textContent=`Group focus: ${collectionNames[data.collection_focus || 'all']}`;
+    $('group-focus-settings').hidden=!data.is_owner;
+    if(full||changed||!$('group-focus-form').dataset.dirty){$('group-focus-value').value=data.collection_focus || 'all';delete $('group-focus-form').dataset.dirty;}
     if(changed){selected=new Set(data.members.filter(m=>m.character).map(m=>m.id));limit=12;$('group-invite-output').replaceChildren();$('group-invite-output').hidden=true;}
     else selected=new Set([...selected].filter(id=>data.members.some(m=>m.id===id && m.character)));
     $('group-detail').hidden=false;$('group-empty').hidden=true;
-    $('group-name').textContent=data.name;$('group-type').textContent=typeNames[data.kind];
+    $('group-name').textContent=data.name;$('group-type').textContent=`${typeNames[data.kind]} · ${collectionNames[data.collection_focus || 'all']}`;
     $('group-expiry').textContent=data.expires_at?`Expires ${new Date(data.expires_at*1000).toLocaleString()}`:'Persistent group · invite only';
     $('group-invite').hidden=!data.is_owner;
     if(full||changed)sharingFields($('group-sharing-fields'),data.members.find(m=>m.self));
@@ -98,9 +104,10 @@
   }
   function renderResults() {
     if(!active)return;
-    const results=StudiumGroupPlanner.compare(catalogs,active.members,{selected:[...selected],scope:$('group-scope').value,query:$('group-search').value,wishlistOnly:$('group-wishlist-only').checked,everyone:$('group-everyone').checked});
+    const collection=$('group-collection').value==='group'?(active.collection_focus || 'all'):$('group-collection').value;
+    const results=StudiumGroupPlanner.compare(catalogs,active.members,{collection,selected:[...selected],scope:$('group-scope').value,query:$('group-search').value,wishlistOnly:$('group-wishlist-only').checked,everyone:$('group-everyone').checked});
     const target=$('group-results');target.replaceChildren();
-    $('group-result-count').textContent=`${results.length} matching activities · ${selected.size} members selected`;
+    $('group-result-count').textContent=`${results.length} matching activities · ${collectionNames[collection]} · ${selected.size} members selected`;
     $('group-more').hidden=results.length<=limit;
     for(const result of results.slice(0,limit)) {
       const section=node('article','','group-run');section.append(node('p',result.type,'eyebrow'),node('h3',result.title));
@@ -133,7 +140,7 @@
   async function reviewInvitation() {
     const target=$('group-invitation');target.replaceChildren();target.hidden=!invitation;if(!invitation)return;
     target.append(node('h2','You have a group invitation'));
-    try {const data=await api('preview',{invite:invitation});preview=data.group;target.replaceChildren();target.append(node('h2',`Join ${preview.name}`),node('p',`${typeNames[preview.kind]}${preview.expires_at?` · expires ${new Date(preview.expires_at*1000).toLocaleString()}`:''}`));
+    try {const data=await api('preview',{invite:invitation});preview=data.group;target.replaceChildren();target.append(node('h2',`Join ${preview.name}`),node('p',`${typeNames[preview.kind]} · ${collectionNames[preview.collection_focus || 'all']}${preview.expires_at?` · expires ${new Date(preview.expires_at*1000).toLocaleString()}`:''}`));
       const form=node('form'),fields=node('div');sharingFields(fields);const button=node('button','Join with these sharing choices','primary-button');button.type='submit';form.append(fields,button);
       form.addEventListener('submit',event=>{event.preventDefault();run(async()=>{const data=await api('join',{invite:invitation,...sharing(form)});forgetInvitation();target.replaceChildren();target.hidden=true;accept(data.group,true);await loadList();feedback('Joined the group. Your sharing choices apply only to this group.');});});target.append(form);
     }catch(error){if(error.message==='superseded')return;target.append(node('p',error.message));}
@@ -146,13 +153,15 @@
     if(!account){if(previous)forgetInvitation();$('group-create-sharing').replaceChildren();return;}
     sharingFields($('group-create-sharing'));await run(async()=>{await loadList();await reviewInvitation();});
   }
-  $('group-create').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('create',{name:form.elements.name.value,kind:form.elements.kind.value,...sharing(form)});accept(data.group,true);showInvite(data);await loadList();$('group-create-details').open=false;form.elements.name.value='';sharingFields($('group-create-sharing'));feedback('Group created. Send the invitation link to your friends.');});});
+  $('group-create').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('create',{name:form.elements.name.value,kind:form.elements.kind.value,collection_focus:form.elements.collection_focus.value,...sharing(form)});accept(data.group,true);showInvite(data);await loadList();$('group-create-details').open=false;form.elements.name.value='';sharingFields($('group-create-sharing'));feedback('Group created. Send the invitation link to your friends.');});});
   $('group-sharing').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('sharing',{group_id:active.id,...sharing(form)});accept(data.group,true);feedback('Sharing choices saved.');});});
+  $('group-focus-value').addEventListener('change',()=>{$('group-focus-form').dataset.dirty='true';});
+  $('group-focus-form').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget;run(async()=>{const data=await api('focus',{group_id:active.id,collection_focus:form.elements.collection_focus.value});delete form.dataset.dirty;accept(data.group);await loadList();feedback('Group collection focus saved. Members using Group focus will see the new comparison.');});});
   $('group-invite').addEventListener('click',()=>run(async()=>showInvite(await api('invite',{group_id:active.id}))));
   $('group-leave').addEventListener('click',()=>run(async()=>{await api(active.is_owner?'delete':'leave',{group_id:active.id});clearDetail();await loadList();feedback('Group closed or left. Your personal journal is unchanged.');}));
   $('group-reload').addEventListener('click',()=>run(loadList));
   $('group-refresh').addEventListener('click',()=>run(async()=>{try{const data=await api(`detail?id=${encodeURIComponent(active.id)}`);accept(data);feedback('Showing the latest saved group progress. Members can sync new collections in Field Notes.');}catch(error){if([401,404].includes(error.status)){clearDetail();await loadList();}throw error;}}));
-  for(const id of ['group-search','group-scope','group-wishlist-only','group-everyone'])$(id).addEventListener(id==='group-search'?'input':'change',()=>{limit=12;renderResults();});
+  for(const id of ['group-search','group-collection','group-scope','group-wishlist-only','group-everyone'])$(id).addEventListener(id==='group-search'?'input':'change',()=>{limit=12;renderResults();});
   $('group-more').addEventListener('click',()=>{limit+=12;renderResults();});$('group-catalog-retry').addEventListener('click',loadCatalogs);
   async function refresh() {
     if(!active||busy||document.hidden)return;

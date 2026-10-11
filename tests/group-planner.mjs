@@ -31,3 +31,26 @@ test('everyone, wishlist-only, source scope and text filters preserve accurate b
   assert.deepEqual(compare(catalogs,members,{selected:[],timestamp}),[]);
   assert.equal(ownership(member('Alice',[1]),'mounts',1,timestamp),'owned');
 });
+
+test('collection selection changes ranking and everyone eligibility before benefit counts are calculated',()=>{
+  const source=text=>[{type:'Trial',text}];
+  const mixed=[{kind:'mounts',items:[{id:1,name:'Mount one',sources:source('Mount grind')},{id:2,name:'Mount two',sources:source('Mixed duty')}]},
+    {kind:'minions',items:[{id:1,name:'Minion one',sources:source('Mixed duty')}]},
+    {kind:'emotes',items:[{id:1,name:'Emote one',sources:source('Emote duty')}]},
+    {kind:'facewear',items:[{id:1,name:'Glasses',sources:source('Facewear duty')}]}];
+  const alice=member('Alice',[],[1]),bob=member('Bob',[2],[1]),cedar=member('Cedar',[1,2]);
+  for(const m of [alice,bob,cedar])for(const kind of ['minions','emotes','facewear'])m.sync.snapshot.collections[kind]={visibility:'public',ids:[]};
+  const members=[alice,bob,cedar];
+  assert.equal(compare(mixed,members,{timestamp})[0].title,'Mixed duty');
+  const mounts=compare(mixed,members,{collection:'mounts',timestamp});
+  assert.equal(mounts[0].title,'Mount grind');assert.equal(mounts[0].people.length,2);
+  assert.equal(mounts.find(r=>r.title==='Mixed duty').people.length,1);
+  assert.ok(mounts.flatMap(r=>r.rewards).every(r=>r.kind==='mounts'));
+  assert.deepEqual(compare(mixed,members,{collection:'mounts',everyone:true,timestamp}),[]);
+  assert.ok(compare(mixed,members,{everyone:true,timestamp}).some(r=>r.title==='Mixed duty'));
+  for(const kind of ['minions','emotes','facewear']) {
+    const results=compare(mixed,members,{collection:kind,timestamp});assert.equal(results.length,1);
+    assert.ok(results[0].rewards.every(r=>r.kind===kind));
+    assert.deepEqual(compare(mixed,members,{collection:kind,wishlistOnly:true,timestamp}),[]);
+  }
+});

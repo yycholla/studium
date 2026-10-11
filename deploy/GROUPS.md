@@ -14,6 +14,8 @@ There are limits of 50 members per group, 20 memberships per account, and 10 own
 
 ## Matching and freshness
 
+Owners choose a saved collection focus when creating a group or under Group collection focus: all collections, mounts, minions, emotes, or facewear. Existing groups default to all collections through migration `0005_group_collection_focus.sql`. The default comparison follows this focus for every member, including future updates. Each member can override the Collections dropdown for their current view without changing the saved group setting; switching groups restores that group’s default. Focus filters catalogs before beneficiary counts, wishlist ranking, and the everyone filter are calculated, so unrelated categories cannot inflate mount-grind rankings. This is a comparison preference, not a change to members’ sharing permissions.
+
 Public catalogs are the existing validated FFXIV Collect snapshots. Matching considers every listed source, groups identical normalized source type/name pairs, and deduplicates repeated sources for each reward. Whitespace/case normalization does not merge different duty difficulties or infer prerequisites. The default Duties filter includes Trial, Raid, Dungeon, Deep Dungeon, and V&C Dungeon source types (including plural forms). All acquisition sources also includes achievements, vendors, and other community-listed requirements; these are not assumed to be direct drops.
 
 Each activity lists the rewards and selected members who might benefit. Results rank by distinct beneficiaries, then members with wishlist goals, confirmed missing rewards, reward count, and name. A member counts at most once per activity. “Something for everyone selected” requires each selected linked member to benefit from at least one reward; they need not all need the same item. Search filters source names and reward names before ranking. Collection-only and wishlist-only sharing are both supported.
@@ -31,9 +33,10 @@ All `/api/groups/*` routes run through the Worker before assets. Responses are p
 - `GET list`: groups for the current account.
 - `GET detail?id=…`: member-only roster and shared projections.
 - `POST preview {invite}`: group metadata only.
-- `POST create {name,kind,character_key,share_collections,share_wishlist}`: creates the owner membership and returns the group and invite URL.
+- `POST create {name,kind,collection_focus,character_key,share_collections,share_wishlist}`: creates the owner membership and returns the group and invite URL.
 - `POST join {invite,character_key,share_collections,share_wishlist}`: joins without modifying an existing membership.
 - `POST sharing {group_id,character_key,share_collections,share_wishlist}`: changes the caller’s sharing and character only.
+- `POST focus {group_id,collection_focus}`: owner-only update of the group’s default collection.
 - `POST invite {group_id}`: owner-only invite rotation.
 - `POST remove {group_id,member_id}`: owner-only removal and current-link revocation.
 - `POST leave {group_id}`: non-owner membership removal.

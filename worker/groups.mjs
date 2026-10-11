@@ -1,4 +1,5 @@
 import { KINDS } from './field-notes.mjs';
+const collectionFocus = value => ['all', ...KINDS].includes(value);
 const now = () => Math.floor(Date.now() / 1000);
 const stmt = (env, sql, ...args) => env.DB.prepare(sql).bind(...args);
 const token = () => { const bytes = crypto.getRandomValues(new Uint8Array(32)); return btoa(String.fromCharCode(...bytes)).replaceAll('+','-').replaceAll('/','_').replaceAll('=',''); };
@@ -6,7 +7,7 @@ const digest = async value => Array.from(new Uint8Array(await crypto.subtle.dige
 const valid = (value, length = 128) => typeof value === 'string' && value.length > 0 && value.length <= length;
 const inviteValid = value => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value);
 const reply = (body, status = 200) => Response.json(body, {status, headers:{'Cache-Control':'private, no-store',Vary:'Cookie','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
-const metadata = group => ({id:group.id,name:group.name,kind:group.kind,expires_at:group.expires_at});
+const metadata = group => ({id:group.id,name:group.name,kind:group.kind,collection_focus:group.collection_focus,expires_at:group.expires_at});
 const inviteReply = (config, raw, expires) => ({invite_url:`${config.origin}/groups#invite=${raw}`,invite_expires_at:expires});
 
 async function detail(env, group, accountId) {
@@ -44,7 +45,7 @@ async function detail(env, group, accountId) {
 
 export async function handleGroups(request, env, current, config) {
   const url = new URL(request.url), action = url.pathname.slice('/api/groups/'.length);
-  const methods = {list:'GET',detail:'GET',preview:'POST',create:'POST',join:'POST',sharing:'POST',invite:'POST',remove:'POST',leave:'POST',delete:'POST'};
+  const methods = {list:'GET',detail:'GET',preview:'POST',create:'POST',join:'POST',sharing:'POST',focus:'POST',invite:'POST',remove:'POST',leave:'POST',delete:'POST'};
   if (!Object.hasOwn(methods, action)) return reply({error:'Not found.'},404);
   if (request.method !== methods[action]) return reply({error:`Use ${methods[action]}.`},405);
   if (!current) return reply({error:'Sign in to use collection groups.'},401);
@@ -61,7 +62,7 @@ export async function handleGroups(request, env, current, config) {
   await stmt(env,'DELETE FROM collection_groups WHERE expires_at IS NOT NULL AND expires_at <= ?',now()).run();
   const accountId = current.account_id;
   if (action === 'list') {
-    const {results} = await stmt(env,`SELECT g.id,g.name,g.kind,g.expires_at, g.owner_id=? AS is_owner,
+    const {results} = await stmt(env,`SELECT g.id,g.name,g.kind,g.collection_focus,g.expires_at, g.owner_id=? AS is_owner,
       (SELECT COUNT(*) FROM collection_members WHERE group_id=g.id) AS member_count
       FROM collection_groups g JOIN collection_members m ON m.group_id=g.id WHERE m.account_id=? ORDER BY g.created_at DESC`,accountId,accountId).all();
     return reply({groups:results.map(g=>({...g,is_owner:Boolean(g.is_owner)}))});
@@ -88,12 +89,14 @@ export async function handleGroups(request, env, current, config) {
     if (action === 'create') {
       const name = typeof input.name === 'string' ? input.name.trim() : '';
       if (!name || name.length > 80 || !['friends','fc','party'].includes(input.kind)) return reply({error:'Enter a group name (up to 80 characters) and choose a group type.'},400);
+      const focus = input.collection_focus === undefined ? 'all' : input.collection_focus;
+      if (!collectionFocus(focus)) return reply({error:'Choose a supported collection focus.'},400);
       const id = crypto.randomUUID(), raw = token(), timestamp = now();
       const expires = input.kind === 'party' ? timestamp+86400 : null, inviteExpires = expires || timestamp+7*86400;
       await env.DB.batch([
-        stmt(env,`INSERT INTO collection_groups (id,owner_id,name,kind,created_at,expires_at,invite_hash,invite_expires_at)
-          SELECT ?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM collection_members WHERE account_id=?)<20
-          AND (SELECT COUNT(*) FROM collection_groups WHERE owner_id=?)<10`,id,accountId,name,input.kind,timestamp,expires,await digest(raw),inviteExpires,accountId,accountId),
+        stmt(env,`INSERT INTO collection_groups (id,owner_id,name,kind,created_at,expires_at,invite_hash,invite_expires_at,collection_focus)
+          SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM collection_members WHERE account_id=?)<20
+          AND (SELECT COUNT(*) FROM collection_groups WHERE owner_id=?)<10`,id,accountId,name,input.kind,timestamp,expires,await digest(raw),inviteExpires,focus,accountId,accountId),
         stmt(env,`INSERT INTO collection_members (id,group_id,account_id,lodestone_id,share_collections,share_wishlist,joined_at)
           SELECT ?,id,?,?,?,?,? FROM collection_groups WHERE id=?`,crypto.randomUUID(),accountId,character.lodestone_id,...flags,timestamp,id),
       ]);
@@ -125,6 +128,12 @@ export async function handleGroups(request, env, current, config) {
     return reply({ok:true});
   }
   if (group.owner_id !== accountId) return reply({error:'Only the group owner can do that.'},403);
+  if (action === 'focus') {
+    if (!collectionFocus(input.collection_focus)) return reply({error:'Choose a supported collection focus.'},400);
+    const updated = await stmt(env,'UPDATE collection_groups SET collection_focus=? WHERE id=? AND owner_id=? RETURNING *',input.collection_focus,group.id,accountId).first();
+    if (!updated) return reply({error:'This group is no longer available.'},404);
+    return reply({group:await detail(env,updated,accountId)});
+  }
   if (action === 'delete') {
     await stmt(env,'DELETE FROM collection_groups WHERE id=? AND owner_id=?',group.id,accountId).run();
     return reply({ok:true});
