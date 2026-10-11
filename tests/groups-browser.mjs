@@ -45,6 +45,14 @@ try {
   for(const checkbox of await alice.locator('#group-members input[type=checkbox]').all())await checkbox.check();
   assert.match(await alice.locator('.group-run').first().textContent(),/2 could benefit/);
   assert.match(await alice.locator('.group-run').first().textContent(),/Bob — Wishlist · Not collected/);
+  await alice.locator('#group-owned-by').selectOption('none');
+  assert.match(await alice.locator('#group-results').textContent(),/Nightmare/);assert.doesNotMatch(await alice.locator('#group-results').textContent(),/Aithon/);
+  assert.match(await alice.locator('#group-results').textContent(),/0 of 2 own this · 2 missing/);
+  await alice.locator('#group-owned-by').selectOption('one');
+  assert.match(await alice.locator('#group-results').textContent(),/Aithon/);assert.doesNotMatch(await alice.locator('#group-results').textContent(),/Nightmare/);
+  await alice.locator('#group-owned-by').selectOption('exact');await alice.locator('#group-owner-count').fill('0');
+  assert.match(await alice.locator('#group-results').textContent(),/Nightmare/);
+  await alice.locator('#group-owned-by').selectOption('any');
   assert.equal(await bob.locator('#group-focus-settings').isVisible(),false);
   assert.match(await bob.locator('#group-collection-default').textContent(),/Mounts/);
   assert.doesNotMatch(await bob.locator('#group-results').textContent(),/Fat Cat/);
@@ -63,12 +71,14 @@ try {
   await alice.waitForFunction(()=>document.querySelector('#group-collection-default').textContent.includes('Mounts'));
   await alice.locator('#group-focus-settings summary').click();
   await bob.locator('#group-refresh').click();await bob.waitForFunction(()=>document.querySelector('#group-collection-default').textContent.includes('Mounts'));
+  await alice.locator('#group-owned-by').selectOption('exact');await alice.locator('#group-owner-count').fill('1');
   for(const width of [1440,1024,800,768,390,320]){
     await alice.setViewportSize({width,height:1000});
     assert.equal(await alice.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Groups overflow at ${width}`);
     await alice.screenshot({path:`test-results/groups-${width}.png`,fullPage:true});
   }
   await alice.setViewportSize({width:1440,height:1000});
+  await alice.locator('#group-owned-by').selectOption('any');
   await alice.locator('#group-everyone').check();assert.equal(await alice.locator('.group-run').count(),2);
   await alice.locator('#group-search').fill('Aithon');assert.equal(await alice.locator('.group-run').count(),0);await alice.locator('#group-search').fill('');
   await bob.locator('#group-settings summary').click();await bob.locator('#group-sharing input[name=share_collections]').uncheck();await bob.locator('#group-sharing input[name=share_wishlist]').uncheck();await bob.locator('#group-sharing button[type=submit]').click();
@@ -92,5 +102,5 @@ try {
     const runs=StudiumGroupPlanner.compare(catalogs,[member]);assert.ok(runs.length>0,'Current provider catalogs must contain supported duty sources');
     console.log(`Live catalog matching verified: ${runs.length} duties across ${catalogs.reduce((sum,c)=>sum+c.items.length,0)} collectibles; source types: ${[...new Set(runs.map(r=>r.type))].join(', ')}.`);
   }
-  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, matching, revocation, leaving, public import/CORS sync/removal and six widths.');
+  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, ownership counts, matching, revocation, leaving, public import/CORS sync/removal and six widths.');
 } finally {await browser.close();for(const fn of cleanup)fn();}

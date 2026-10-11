@@ -11,19 +11,30 @@
     if (collection?.visibility !== 'public' || !Array.isArray(collection.ids)) return 'unknown';
     return collection.ids.includes(id) ? 'owned' : 'missing';
   }
-  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', collection = 'all', query = '', wishlistOnly = false, everyone = false, timestamp = Date.now()} = {}) {
+  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', collection = 'all', query = '', wishlistOnly = false, everyone = false, ownedBy = 'any', ownerCount = 0, timestamp = Date.now()} = {}) {
     const participants = members.filter(m=>selected.includes(m.id) && m.character), groups = new Map(), search = normalize(query);
     if (!participants.length) return [];
     for (const catalog of catalogs) for (const item of catalog.items) {
       if (!kinds.includes(catalog.kind) || (collection !== 'all' && catalog.kind !== collection)) continue;
+      const states = participants.map(member=>ownership(member,catalog.kind,item.id,timestamp));
+      const counts = {owned:states.filter(s=>s==='owned').length,missing:states.filter(s=>s==='missing').length,
+        unknown:states.filter(s=>s==='unknown'||s==='stale').length,total:participants.length};
+      if (ownedBy !== 'any') {
+        // Exact group counts require evidence for every selected character, including imports.
+        if (counts.unknown) continue;
+        const matches = {none:counts.owned===0,one:counts.owned===1,some:counts.owned>0&&counts.owned<counts.total,
+          'all-but-one':counts.owned===counts.total-1,all:counts.owned===counts.total,
+          exact:Number.isInteger(ownerCount)&&ownerCount>=0&&counts.owned===ownerCount};
+        if (!Object.hasOwn(matches,ownedBy) || !matches[ownedBy]) continue;
+      }
       const benefits = [];
-      for (const member of participants) {
-        const state = ownership(member,catalog.kind,item.id,timestamp);
+      for (const [index,member] of participants.entries()) {
+        const state = states[index];
         const goal = member.share_wishlist && member.goals?.some(g=>g.kind===catalog.kind && g.item_id===item.id);
         if (state === 'owned' || (wishlistOnly && !goal)) continue;
         if (state === 'missing' || goal) benefits.push({member_id:member.id,name:member.character.name,wishlist:Boolean(goal),ownership:state});
       }
-      if (!benefits.length) continue;
+      if (!benefits.length && (ownedBy === 'any' || wishlistOnly)) continue;
       const seen = new Set();
       for (const source of item.sources) {
         if (!source.type?.trim() || !source.text?.trim()) continue;
@@ -33,7 +44,7 @@
         if (search && !normalize(`${source.type} ${source.text} ${item.name}`).includes(search)) continue;
         if (!groups.has(key)) groups.set(key,{key,type:source.type,title:source.text,rewards:[],people:new Set(),wishlistPeople:new Set(),missingPeople:new Set()});
         const group = groups.get(key);
-        group.rewards.push({kind:catalog.kind,id:item.id,name:item.name,benefits});
+        group.rewards.push({kind:catalog.kind,id:item.id,name:item.name,benefits,ownership:counts});
         for (const benefit of benefits) {
           group.people.add(benefit.member_id);
           if (benefit.wishlist) group.wishlistPeople.add(benefit.member_id);

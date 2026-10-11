@@ -54,3 +54,40 @@ test('collection selection changes ranking and everyone eligibility before benef
     assert.deepEqual(compare(mixed,members,{collection:kind,wishlistOnly:true,timestamp}),[]);
   }
 });
+
+test('ownership filters count selected characters per reward, including public imports',()=>{
+  const items=Array.from({length:4},(_,id)=>({id:id+1,name:`Reward ${id}`,sources:[{type:'Trial',text:'Shared duty'},{type:'Raid',text:'Alternative duty'}]}));
+  const catalog=[{kind:'mounts',items}],members=[member('Alice',[2,3,4]),member('Bob',[3,4]),member('Import',[4],[],{public_character:true})];
+  const ids=options=>compare(catalog,members,{timestamp,...options})[0]?.rewards.map(r=>r.id)||[];
+  assert.deepEqual(ids({ownedBy:'none'}),[1]);assert.deepEqual(ids({ownedBy:'one'}),[2]);
+  assert.deepEqual(ids({ownedBy:'some'}),[2,3]);assert.deepEqual(ids({ownedBy:'all-but-one'}),[3]);
+  assert.deepEqual(ids({ownedBy:'all'}),[4]);assert.deepEqual(ids({ownedBy:'exact',ownerCount:2}),[3]);
+  assert.deepEqual(ids({ownedBy:'exact',ownerCount:0}),[1]);assert.deepEqual(ids({ownedBy:'exact',ownerCount:3}),[4]);
+  for(const ownerCount of [-1,4,1.5,NaN])assert.deepEqual(ids({ownedBy:'exact',ownerCount}),[]);
+  assert.deepEqual(ids({ownedBy:'none',selected:['Bob','Import']}),[1,2]);
+  assert.deepEqual(ids({ownedBy:'all',selected:['Alice']}),[2,3,4]);
+  assert.deepEqual(ids({ownedBy:'none',selected:[]}),[]);
+  const owned=compare(catalog,members,{ownedBy:'all',timestamp});assert.equal(owned.length,2);
+  assert.deepEqual(owned[0].rewards[0].ownership,{owned:3,missing:0,unknown:0,total:3});assert.deepEqual(owned[0].people,[]);
+  assert.deepEqual(ids({}),[1,2,3],'default remains useful-reward comparison');
+});
+
+test('unknown and stale participants cannot establish exact ownership, even with wishlist goals',()=>{
+  for(const extra of [{share_collections:false},{sync:null},{sync:{status:'unavailable',checked_at:timestamp/1000,snapshot:{source_updated_at:new Date(timestamp).toISOString(),collections:{mounts:{visibility:'public',ids:[]}}}}}]) {
+    const members=[member('Alice',[],[1]),member('Unknown',[],[1],extra)];
+    for(const ownedBy of ['none','one','some','all-but-one','all','exact'])assert.deepEqual(compare(catalogs,members,{ownedBy,ownerCount:0,timestamp}),[]);
+    const ordinary=compare(catalogs,members,{timestamp});assert.deepEqual(ordinary[0].rewards[0].ownership,{owned:0,missing:1,unknown:1,total:2});
+    assert.ok(compare(catalogs,members,{ownedBy:'none',selected:['Alice'],timestamp}).length>0);
+  }
+});
+
+test('ownership filtering happens before source ranking and combines with benefit and wishlist filters',()=>{
+  const members=[member('Alice',[1],[2]),member('Bob',[],[1])];
+  const results=compare(catalogs,members,{ownedBy:'one',timestamp});
+  assert.equal(results.length,1);assert.deepEqual(results[0].rewards.map(r=>r.id),[1]);assert.deepEqual(results[0].people,['Bob']);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'one',everyone:true,timestamp}),[]);
+  assert.equal(compare(catalogs,members,{ownedBy:'one',wishlistOnly:true,timestamp})[0].wishlistPeople.length,1);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'all',wishlistOnly:true,timestamp}),[]);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'one',query:'Nightmare',timestamp}),[]);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'one',collection:'minions',timestamp}),[]);
+});

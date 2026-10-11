@@ -119,3 +119,23 @@ test('public collections auto-sync through CORS and strip private fields before 
  assert.equal(providerCalls,1);assert.equal(posted.profile.minions.ids,null);assert.equal(posted.public_id,'public-test');
  await until(()=>d.querySelector('#group-results').textContent.includes('Friend — Not collected'));
 });
+
+test('ownership controls filter individual rewards, persist on refresh, and recalculate with selection',async t=>{
+ const f=fixture(t);f.sync('a','12345',[]);f.sync('b','67890',[1]);
+ const made=await create(f,{share_collections:true});await body(await f.post('b','join',{invite:invite(made),...choices('b',{share_collections:true})}));
+ const {d,w}=await setup(t,f,{override:path=>path.includes('/catalog?kind=mounts')?Response.json({kind:'mounts',items:[{id:1,name:'Aithon',sources:[{type:'Trial',text:'Shared duty'}]},{id:2,name:'Nightmare',sources:[{type:'Trial',text:'Shared duty'}]}]}):null});
+ d.querySelector('[data-group]').click();await until(()=>d.querySelectorAll('.group-member').length===2);
+ const select=d.querySelector('#group-owned-by'),count=d.querySelector('#group-owner-count');
+ const choose=value=>{select.value=value;select.dispatchEvent(new w.Event('change'));};
+ choose('none');assert.match(d.querySelector('#group-results').textContent,/Nightmare/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Aithon/);
+ assert.match(d.querySelector('#group-results').textContent,/0 of 2 own this · 2 missing/);
+ choose('one');assert.match(d.querySelector('#group-results').textContent,/Aithon/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Nightmare/);
+ choose('exact');assert.equal(d.querySelector('#group-owner-count-label').hidden,false);count.value='0';count.dispatchEvent(new w.Event('input'));
+ assert.match(d.querySelector('#group-results').textContent,/Nightmare/);
+ d.querySelector('#group-refresh').click();await until(()=>!d.querySelector('#group-reload').disabled);assert.equal(select.value,'exact');assert.equal(count.value,'0');
+ count.value='';count.dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('.group-run').length,0);
+ choose('all');assert.equal(d.querySelectorAll('.group-run').length,0);
+ const alice=d.querySelector(`#group-members input[data-member="${made.group.members[0].id}"]`);alice.checked=false;alice.dispatchEvent(new w.Event('change'));
+ assert.match(d.querySelector('#group-results').textContent,/Everyone selected already owns these rewards/);assert.match(d.querySelector('#group-results').textContent,/1 of 1 own this/);
+ assert.equal(count.max,'1');assert.equal(d.querySelector('#group-owner-count-label').hidden,true);
+});
