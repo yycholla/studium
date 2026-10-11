@@ -42,7 +42,7 @@ The approved design baseline combines a dark scholarly archive with botanical il
 
 ## Field Notes
 
-`/field-notes` is a character-linked collectible journal. Browse mounts, minions, emotes, and facewear; search names and acquisition sources; group by collection or first source; and save goals with private notes for each linked character.
+`/field-notes` is a character-linked collectible journal. Browse mounts, minions, emotes, and facewear; search names and acquisition sources; group by collection or source type (such as Achievements, Trials, and Vendors); and save goals with private notes for each linked character.
 
 Select a verified character in the top-right account menu. Field Notes automatically checks its public FFXIV Collect collections through the browser API when opened or switched, at most hourly, and periodically while the page remains open. Goals display their collection status automatically and stay in the wishlist after collection. There is no manual ownership toggle. Source timestamps are shown because upstream updates can lag by several hours. Public catalogs are snapshotted during the daily site build, keeping browsing independent of provider access from Workers.
 

@@ -46,6 +46,36 @@ test('anonymous browsing searches sources and never syncs or enables goals', asy
   const input=d.querySelector('#field-search');input.value='Bowl of Embers';input.dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('.field-card').length,4);
   input.value='unfindable';input.dispatchEvent(new w.Event('input'));assert.match(d.querySelector('#field-results').textContent,/No matching/);
 });
+test('source types consolidate distinct achievements while preserving requirements and alternatives', async t=>{
+  const items=[
+    {id:1,name:'Al-iklil',sources:[{type:'Achievement',text:'A Complete History'}]},
+    {id:2,name:'Amaro',sources:[{type:'Achievement',text:'A Life of Adventure IV'},{type:'Vendor',text:'Alternative vendor'}]},
+    {id:3,name:'Aithon',sources:[{type:'Trial',text:'The Bowl of Embers'}]},
+    {id:4,name:'Vendor reward',sources:[{type:'Vendor',text:'The Gold Saucer'}]},
+    {id:5,name:'Unlisted reward',sources:[]},
+    {id:6,name:'Future reward',sources:[{type:'Future activity',text:'Specific requirement'}]},
+  ];
+  const {d,w}=await setup(t,{data:{configured:true,account:null},override:path=>{
+    if(!path.includes('/catalog?')) return null;
+    const kind=new URL(path,'https://studium.yycholla.com').searchParams.get('kind');
+    return Response.json({kind,items:kind==='mounts'?items:[]});
+  }});
+  const select=d.querySelector('#field-group');select.value='source';select.dispatchEvent(new w.Event('change'));
+  const groups=new Map([...d.querySelectorAll('.field-group')].map(section=>[section.querySelector('h2').textContent,section]));
+  assert.deepEqual([...groups.keys()],['Achievements','Future activity','Source not listed','Trials','Vendors']);
+  assert.equal(groups.get('Achievements').querySelectorAll('.field-card').length,2);
+  assert.match(groups.get('Achievements').textContent,/A Complete History/);
+  assert.match(groups.get('Achievements').textContent,/A Life of Adventure IV/);
+  assert.match(groups.get('Achievements').textContent,/Alternative vendor/);
+  assert.equal(groups.get('Vendors').querySelectorAll('.field-card').length,1);
+  assert.equal(d.querySelectorAll('.field-card').length,items.length);
+  const search=d.querySelector('#field-search');search.value='A Life of Adventure';search.dispatchEvent(new w.Event('input'));
+  assert.equal(d.querySelectorAll('.field-card').length,1);assert.equal(d.querySelector('.field-group h2').textContent,'Achievements');
+  search.value='';search.dispatchEvent(new w.Event('input'));
+  select.value='collection';select.dispatchEvent(new w.Event('change'));
+  assert.equal(d.querySelectorAll('.field-group').length,1);assert.equal(d.querySelector('.field-group h2').textContent,'Mounts');
+  assert.equal(d.querySelector('#field-group-hint').hidden,true);
+});
 test('header selection drives automatic ownership and isolated wishlists; logout clears the journal', async t=>{
   const {d,calls}=await setup(t,{realHeader:true});
   const mount=()=>d.querySelector('[data-item="mounts:1"]');assert.match(mount().textContent,/✓ Collected/);

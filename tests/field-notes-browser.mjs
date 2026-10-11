@@ -46,6 +46,12 @@ try {
   assert.equal(await page.locator('.field-card').count(),0);
   await page.locator('#field-wishlist').click();await page.locator('#field-search').fill('Bowl of Embers');assert.equal(await page.locator('.field-card').count(),6);
   await page.locator('#field-group').selectOption('source');assert.equal(await page.locator('#field-group-hint').isVisible(),true);
+  assert.deepEqual(await page.locator('.field-group h2').allTextContents(),['Trials']);
+  await page.locator('#field-search').fill('');
+  assert.deepEqual(await page.locator('.field-group h2').allTextContents(),['Trials','Vendors']);
+  assert.equal(await page.locator('.field-group').nth(0).locator('.field-card').count(),6);
+  assert.equal(await page.locator('.field-group').nth(1).locator('.field-card').count(),6);
+  await page.screenshot({path:'test-results/field-notes-source-types.png',fullPage:true});
   if (process.argv.includes('--live-provider')) {
     const live = await browser.newPage();
     await live.route('https://studium.yycholla.com/__collect_probe', r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Public API CORS check</title>'}));

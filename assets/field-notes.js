@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const kinds = { mounts: 'Mounts', minions: 'Minions', emotes: 'Emotes', facewear: 'Facewear' };
+  const sourceLabels = { Achievement: 'Achievements', Trial: 'Trials', Vendor: 'Vendors', Dungeon: 'Dungeons', Raid: 'Raids', Quest: 'Quests' };
   const catalogs = new Map();
   let account = null, csrf = null, character = null, journal = null;
   let revision = 0, generation = 0, accountEvents = 0, busy = false, syncing = false, stateLoading = false;
@@ -108,7 +109,10 @@
         (owned === 'all' || ownership(item) === owned) && (!query || `${item.name} ${item.sources.map(s => `${s.type} ${s.text}`).join(' ')}`.toLocaleLowerCase().includes(query)))
       .sort((a, b) => a.name.localeCompare(b.name));
     const sourceGroup = $('field-group').value === 'source'; $('field-group-hint').hidden = !sourceGroup;
-    const sourceTitle = item => item.sources[0] ? `${item.sources[0].type} · ${item.sources[0].text}` : 'Source not listed';
+    const sourceTitle = item => {
+      const type = item.sources[0]?.type?.trim();
+      return type ? (Object.hasOwn(sourceLabels, type) ? sourceLabels[type] : type) : 'Source not listed';
+    };
     const groupFor = item => sourceGroup ? sourceTitle(item) : kinds[item.kind];
     items.sort((a, b) => groupFor(a).localeCompare(groupFor(b)) || a.name.localeCompare(b.name));
     const container = $('field-results'); container.replaceChildren(); container.setAttribute('aria-busy', String(catalogLoading));

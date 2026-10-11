@@ -49,9 +49,9 @@ pub async fn field_notes() -> Result {
                             <div class="field-controls">
                                 <label class="field-search">"Search collections"<input id="field-search" type="search" maxlength="120" placeholder="A name, a duty, a place…" autocomplete="off"></label>
                                 <label>"Show"<select id="field-owned"><option value="all">"Everything"</option><option value="missing">"Not collected"</option><option value="owned">"Collected"</option><option value="unknown">"Ownership unknown"</option></select></label>
-                                <label>"Group by"<select id="field-group"><option value="collection">"Collection"</option><option value="source">"Source"</option></select></label>
+                                <label>"Group by"<select id="field-group"><option value="collection">"Collection"</option><option value="source">"Source type"</option></select></label>
                             </div>
-                            <p class="field-hint" id="field-group-hint" hidden="hidden">"Grouped by the first listed source. Alternative sources appear on each card."</p>
+                            <p class="field-hint" id="field-group-hint" hidden="hidden">"Grouped by the first listed source type. Specific requirements and alternative sources appear on each card."</p>
                             <p id="field-feedback" class="notice" role="status" aria-live="polite"></p>
                             <div class="results-toolbar"><p id="field-count" role="status" aria-live="polite">"Loading collections…"</p><button type="button" id="field-retry" hidden="hidden">"Retry loading"</button></div>
                             <div id="field-results" aria-busy="true"></div>
