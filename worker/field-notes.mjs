@@ -11,9 +11,22 @@ class CollectError extends Error {
 }
 async function collect(fetcher, path) {
   let response;
-  try { response = await fetcher(`${ORIGIN}/api/${path}`, { redirect: 'manual', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) }); }
+  try { response = await fetcher(`${ORIGIN}/api/${path}`, { redirect: 'manual', headers: { Accept: 'application/json', 'User-Agent': 'Studium/1.0 (+https://github.com/yycholla/studium)' }, signal: AbortSignal.timeout(20000) }); }
   catch { throw new CollectError(503, 'network'); }
-  if (!response.ok) throw new CollectError(response.status);
+  if (!response.ok) {
+    const error = new CollectError(response.status);
+    // A firewall's 403/404 is an outage, not evidence about character privacy.
+    if ([403, 404].includes(response.status) && response.headers.get('Content-Type')?.includes('application/json')) {
+      try {
+        const data = await readJson(response);
+        if (data?.status === response.status && data.error === (response.status === 403 ? 'Character is set to private' : 'Not found')) error.profileStatus = response.status;
+      } catch { /* Preserve the HTTP diagnostic, without trusting an invalid error body. */ }
+    }
+    throw error;
+  }
+  return readJson(response);
+}
+async function readJson(response) {
   // Bound upstream responses before decoding them.
   const reader = response.body?.getReader();
   if (!reader) throw new CollectError(502, 'invalid-data');
@@ -97,7 +110,7 @@ async function sync(env, accountId, character, fetcher) {
       const snapshot = normalizeCollections(await collect(fetcher, `characters/${character.lodestone_id}?ids=1&latest=1`), character.lodestone_id);
       await stmt(env, "UPDATE field_collections SET payload = ?, status = 'ready', checked_at = ?, next_check_at = ? WHERE account_id = ? AND lodestone_id = ?", JSON.stringify(snapshot), now(), now() + 3600, ...args).run();
     } catch (error) {
-      const status = error.status === 403 ? 'private' : error.status === 404 ? 'not_found' : 'unavailable';
+      const status = error.profileStatus === 403 ? 'private' : error.profileStatus === 404 ? 'not_found' : 'unavailable';
       // Forget ownership on privacy/not-found responses. Preserve the last good snapshot only on transient failure.
       await stmt(env, 'UPDATE field_collections SET payload = CASE WHEN ? THEN payload ELSE NULL END, status = ?, checked_at = ?, next_check_at = ? WHERE account_id = ? AND lodestone_id = ?', status === 'unavailable' ? 1 : 0, status, now(), now() + 300, ...args).run();
     }

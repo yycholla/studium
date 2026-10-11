@@ -26,7 +26,7 @@ function fixture(t) {
   const calls = []; let upstream = owned(), status = 200, catalogBad = false;
   const fetcher = async (url, init) => {
     calls.push({url,init});
-    assert.equal(init.redirect, 'manual'); assert.equal(new URL(url).origin, 'https://ffxivcollect.com');
+    assert.equal(init.redirect, 'manual'); assert.match(init.headers['User-Agent'], /^Studium\/1.0/); assert.equal(new URL(url).origin, 'https://ffxivcollect.com');
     if (url.includes('/characters/')) return Response.json(upstream, { status });
     return Response.json(catalogBad ? {} : { count: 301, results: Array.from({length:301}, (_, i) => ({ id:i+1,name:`Collectible ${i+1}`,icon:'https://evil.invalid/image',sources:[{type:'Duty',text:'An adventure'}] })) });
   };
@@ -74,12 +74,12 @@ test('automatic sync distinguishes empty, private and unavailable categories; ch
 
 test('failed or malformed sync preserves last good snapshot, private and missing profiles erase it', async t => {
   const f=fixture(t); const first=await json(await f.post('sync'));
-  for (const [body,status] of [[{},503],[owned({id:67890}),200],[owned({mounts:{public:true,ids:[1,2],count:1}}),200],[{},302]]) {
+  for (const [body,status] of [[{},503],[{},403],[{},404],[owned({id:67890}),200],[owned({mounts:{public:true,ids:[1,2],count:1}}),200],[{},302]]) {
     f.expire(); f.upstream(body,status); const data=await json(await f.post('sync'));
     assert.equal(data.sync.status,'unavailable'); assert.deepEqual(data.sync.snapshot,first.sync.snapshot);
   }
   for (const [status,expected] of [[403,'private'],[404,'not_found']]) {
-    f.expire(); f.upstream({},status); const data=await json(await f.post('sync'));
+    f.expire(); f.upstream({status,error:status===403?'Character is set to private':'Not found'},status); const data=await json(await f.post('sync'));
     assert.equal(data.sync.status,expected); assert.equal(data.sync.snapshot,null);
     assert.equal(f.db.prepare('SELECT payload FROM field_collections').get().payload,null);
   }

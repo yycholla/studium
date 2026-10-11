@@ -1,9 +1,6 @@
 name: Collection diagnostics
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [tests/collect-live.mjs, .github/workflows/collection-diagnostics.yml]
 permissions:
   contents: read
 jobs:

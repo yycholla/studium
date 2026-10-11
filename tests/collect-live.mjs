@@ -7,7 +7,7 @@ for (const kind of KINDS) {
   let passed = false;
   for (let attempt = 0; attempt < (studium && !once ? 6 : 1); attempt++) {
     const url = studium ? `https://studium.yycholla.com/api/field-notes/catalog?kind=${kind}` : `https://ffxivcollect.com/api/${kind}?language=en`;
-    const response = await fetch(url, {redirect:'manual',headers:{Accept:'application/json'},signal:AbortSignal.timeout(30000)});
+    const response = await fetch(url, {redirect:'manual',headers:{Accept:'application/json','User-Agent':'Studium/1.0 (+https://github.com/yycholla/studium)'},signal:AbortSignal.timeout(30000)});
     const data = await response.json().catch(()=>null);
     console.log(JSON.stringify({kind,attempt,status:response.status,content_type:response.headers.get('content-type'),reference:data?.reference}));
     if(response.ok) {
