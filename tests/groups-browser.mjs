@@ -47,11 +47,22 @@ try {
   assert.match(await alice.locator('.group-run').first().textContent(),/Bob — Wishlist · Not collected/);
   await alice.locator('#group-owned-by').selectOption('none');
   assert.match(await alice.locator('#group-results').textContent(),/Nightmare/);assert.doesNotMatch(await alice.locator('#group-results').textContent(),/Aithon/);
-  assert.match(await alice.locator('#group-results').textContent(),/0 of 2 own this · 2 missing/);
+  assert.match(await alice.locator('#group-results').textContent(),/0 known owners · 2 confirmed missing · 0 unknown/);
   await alice.locator('#group-owned-by').selectOption('one');
   assert.match(await alice.locator('#group-results').textContent(),/Aithon/);assert.doesNotMatch(await alice.locator('#group-results').textContent(),/Nightmare/);
   await alice.locator('#group-owned-by').selectOption('exact');await alice.locator('#group-owner-count').fill('0');
   assert.match(await alice.locator('#group-results').textContent(),/Nightmare/);
+  await alice.locator('#group-owned-by').selectOption('any');
+  // Reproduce a third selected character whose progress is unavailable.
+  const groupId=f.db.prepare('SELECT id FROM collection_groups').get().id;
+  f.db.prepare('INSERT INTO group_public_characters (id,group_id,lodestone_id,name,home_world,source,next_check_at) VALUES (?,?,?,?,?,?,?)').run('unknown-filter-test',groupId,'99998','Unknown Friend','Mateus','friends',Math.floor(Date.now()/1000)+3600);
+  await alice.locator('#group-refresh').click();await alice.waitForFunction(()=>document.querySelectorAll('.group-member').length===3);
+  await alice.locator('#group-members input[data-member="unknown-filter-test"]').check();
+  await alice.locator('#group-owned-by').selectOption('none');assert.match(await alice.locator('#group-results').textContent(),/0 known owners · 2 confirmed missing · 1 unknown/);
+  await alice.locator('#group-require-complete').check();assert.equal(await alice.locator('.group-run').count(),0);
+  await alice.locator('#group-require-complete').uncheck();assert.ok(await alice.locator('.group-run').count()>0);
+  await alice.locator('#group-owned-by').selectOption('one');assert.match(await alice.locator('#group-results').textContent(),/1 known owners · 1 confirmed missing · 1 unknown/);
+  await alice.getByRole('button',{name:'Remove public character',exact:true}).click();await alice.waitForFunction(()=>document.querySelectorAll('.group-member').length===2);
   await alice.locator('#group-owned-by').selectOption('any');
   assert.equal(await bob.locator('#group-focus-settings').isVisible(),false);
   assert.match(await bob.locator('#group-collection-default').textContent(),/Mounts/);
@@ -102,5 +113,5 @@ try {
     const runs=StudiumGroupPlanner.compare(catalogs,[member]);assert.ok(runs.length>0,'Current provider catalogs must contain supported duty sources');
     console.log(`Live catalog matching verified: ${runs.length} duties across ${catalogs.reduce((sum,c)=>sum+c.items.length,0)} collectibles; source types: ${[...new Set(runs.map(r=>r.type))].join(', ')}.`);
   }
-  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, ownership counts, matching, revocation, leaving, public import/CORS sync/removal and six widths.');
+  assert.deepEqual(errors,[]);console.log('Collection groups browser QA passed: two accounts, explicit sharing, invitations, saved collection focus, personal filters, ownership counts with unknown progress and strict opt-in, matching, revocation, leaving, public import/CORS sync/removal and six widths.');
 } finally {await browser.close();for(const fn of cleanup)fn();}

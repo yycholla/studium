@@ -11,7 +11,7 @@
     if (collection?.visibility !== 'public' || !Array.isArray(collection.ids)) return 'unknown';
     return collection.ids.includes(id) ? 'owned' : 'missing';
   }
-  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', collection = 'all', query = '', wishlistOnly = false, everyone = false, ownedBy = 'any', ownerCount = 0, timestamp = Date.now()} = {}) {
+  function compare(catalogs, members, {selected = members.map(m=>m.id), scope = 'duties', collection = 'all', query = '', wishlistOnly = false, everyone = false, ownedBy = 'any', ownerCount = 0, requireComplete = false, timestamp = Date.now()} = {}) {
     const participants = members.filter(m=>selected.includes(m.id) && m.character), groups = new Map(), search = normalize(query);
     if (!participants.length) return [];
     for (const catalog of catalogs) for (const item of catalog.items) {
@@ -20,10 +20,11 @@
       const counts = {owned:states.filter(s=>s==='owned').length,missing:states.filter(s=>s==='missing').length,
         unknown:states.filter(s=>s==='unknown'||s==='stale').length,total:participants.length};
       if (ownedBy !== 'any') {
-        // Exact group counts require evidence for every selected character, including imports.
-        if (counts.unknown) continue;
-        const matches = {none:counts.owned===0,one:counts.owned===1,some:counts.owned>0&&counts.owned<counts.total,
-          'all-but-one':counts.owned===counts.total-1,all:counts.owned===counts.total,
+        // Count known progress without treating unknown characters as missing.
+        const known = counts.total-counts.unknown;
+        if (!known || (requireComplete && counts.unknown)) continue;
+        const matches = {none:counts.owned===0,one:counts.owned===1,some:counts.owned>0&&counts.owned<known,
+          'all-but-one':counts.owned===known-1,all:counts.owned===known,
           exact:Number.isInteger(ownerCount)&&ownerCount>=0&&counts.owned===ownerCount};
         if (!Object.hasOwn(matches,ownedBy) || !matches[ownedBy]) continue;
       }

@@ -128,7 +128,7 @@ test('ownership controls filter individual rewards, persist on refresh, and reca
  const select=d.querySelector('#group-owned-by'),count=d.querySelector('#group-owner-count');
  const choose=value=>{select.value=value;select.dispatchEvent(new w.Event('change'));};
  choose('none');assert.match(d.querySelector('#group-results').textContent,/Nightmare/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Aithon/);
- assert.match(d.querySelector('#group-results').textContent,/0 of 2 own this · 2 missing/);
+ assert.match(d.querySelector('#group-results').textContent,/0 known owners · 2 confirmed missing · 0 unknown/);
  choose('one');assert.match(d.querySelector('#group-results').textContent,/Aithon/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Nightmare/);
  choose('exact');assert.equal(d.querySelector('#group-owner-count-label').hidden,false);count.value='0';count.dispatchEvent(new w.Event('input'));
  assert.match(d.querySelector('#group-results').textContent,/Nightmare/);
@@ -136,6 +136,23 @@ test('ownership controls filter individual rewards, persist on refresh, and reca
  count.value='';count.dispatchEvent(new w.Event('input'));assert.equal(d.querySelectorAll('.group-run').length,0);
  choose('all');assert.equal(d.querySelectorAll('.group-run').length,0);
  const alice=d.querySelector(`#group-members input[data-member="${made.group.members[0].id}"]`);alice.checked=false;alice.dispatchEvent(new w.Event('change'));
- assert.match(d.querySelector('#group-results').textContent,/Everyone selected already owns these rewards/);assert.match(d.querySelector('#group-results').textContent,/1 of 1 own this/);
+ assert.match(d.querySelector('#group-results').textContent,/Everyone selected already owns these rewards/);assert.match(d.querySelector('#group-results').textContent,/1 known owners · 0 confirmed missing · 0 unknown/);
  assert.equal(count.max,'1');assert.equal(d.querySelector('#group-owner-count-label').hidden,true);
+});
+
+test('zero known owners with an unknown member matches Nobody, with opt-in complete progress',async t=>{
+ const f=fixture(t);f.sync('a','12345',[]);f.sync('b','67890',[]);
+ const made=await create(f,{share_collections:true});
+ for(const account of ['b','c'])await body(await f.post(account,'join',{invite:invite(made),...choices(account,{share_collections:true})}));
+ const {d,w}=await setup(t,f);d.querySelector('[data-group]').click();await until(()=>d.querySelectorAll('.group-member').length===3);
+ assert.match(d.querySelector('#group-results').textContent,/0 known owners · 2 confirmed missing · 1 unknown \(3 selected\)/);
+ const filter=d.querySelector('#group-owned-by'),complete=d.querySelector('#group-require-complete');
+ const choose=value=>{filter.value=value;filter.dispatchEvent(new w.Event('change'));};
+ choose('none');assert.equal(d.querySelectorAll('.group-run').length,1);
+ complete.checked=true;complete.dispatchEvent(new w.Event('change'));assert.equal(d.querySelectorAll('.group-run').length,0);assert.match(d.querySelector('#group-results').textContent,/Require progress for everyone excludes/);
+ complete.checked=false;complete.dispatchEvent(new w.Event('change'));assert.equal(d.querySelectorAll('.group-run').length,1);
+ f.sync('b','67890',[1]);d.querySelector('#group-refresh').click();await until(()=>d.querySelectorAll('.group-run').length===0&&!d.querySelector('#group-reload').disabled);
+ choose('one');assert.equal(d.querySelectorAll('.group-run').length,1);assert.match(d.querySelector('#group-results').textContent,/1 known owners · 1 confirmed missing · 1 unknown/);
+ const alice=d.querySelector(`#group-members input[data-member="${made.group.members[0].id}"]`);alice.checked=false;alice.dispatchEvent(new w.Event('change'));choose('all');
+ assert.match(d.querySelector('#group-results').textContent,/Everyone with known progress already owns/);assert.doesNotMatch(d.querySelector('#group-results').textContent,/Everyone selected already owns/);
 });

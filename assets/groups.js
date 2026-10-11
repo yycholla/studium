@@ -110,21 +110,21 @@
     const collection=$('group-collection').value==='group'?(active.collection_focus || 'all'):$('group-collection').value;
     const ownedBy=$('group-owned-by').value;
     $('group-owner-count-label').hidden=ownedBy!=='exact';$('group-owner-count').max=String(selected.size);
-    const results=StudiumGroupPlanner.compare(catalogs,active.members,{collection,ownedBy,ownerCount:$('group-owner-count').valueAsNumber,selected:[...selected],scope:$('group-scope').value,query:$('group-search').value,wishlistOnly:$('group-wishlist-only').checked,everyone:$('group-everyone').checked});
+    const results=StudiumGroupPlanner.compare(catalogs,active.members,{collection,ownedBy,requireComplete:$('group-require-complete').checked,ownerCount:$('group-owner-count').valueAsNumber,selected:[...selected],scope:$('group-scope').value,query:$('group-search').value,wishlistOnly:$('group-wishlist-only').checked,everyone:$('group-everyone').checked});
     const target=$('group-results');target.replaceChildren();
     $('group-result-count').textContent=`${results.length} matching activities · ${collectionNames[collection]} · ${selected.size} characters selected`;
     $('group-more').hidden=results.length<=limit;
     for(const result of results.slice(0,limit)) {
       const section=node('article','','group-run');section.append(node('p',result.type,'eyebrow'),node('h3',result.title));
-      section.append(node('p',result.people.length?`${result.people.length} could benefit · ${result.missingPeople.length} with confirmed missing rewards · ${result.wishlistPeople.length} with wishlist goals`:'Everyone selected already owns these rewards.'));
+      section.append(node('p',result.people.length?`${result.people.length} could benefit · ${result.missingPeople.length} with confirmed missing rewards · ${result.wishlistPeople.length} with wishlist goals`:result.rewards.some(r=>r.ownership.unknown)?'Everyone with known progress already owns these rewards. Other selected characters have unknown progress.':'Everyone selected already owns these rewards.'));
       const rewards=node('ul','','group-rewards');
-      for(const reward of result.rewards){const li=node('li'),link=node('a',`${reward.name} · ${kindNames[reward.kind]} ↗`);link.href=`https://ffxivcollect.com/${reward.kind}/${reward.id}`;link.target='_blank';link.rel='noopener noreferrer';li.append(link,node('p',`${reward.ownership.owned} of ${reward.ownership.total} own this · ${reward.ownership.missing} missing${reward.ownership.unknown?` · ${reward.ownership.unknown} unknown`:''}`,'group-small'));const people=node('ul','','group-benefits');
+      for(const reward of result.rewards){const li=node('li'),link=node('a',`${reward.name} · ${kindNames[reward.kind]} ↗`);link.href=`https://ffxivcollect.com/${reward.kind}/${reward.id}`;link.target='_blank';link.rel='noopener noreferrer';li.append(link,node('p',`${reward.ownership.owned} known owners · ${reward.ownership.missing} confirmed missing · ${reward.ownership.unknown} unknown (${reward.ownership.total} selected)`,'group-small'));const people=node('ul','','group-benefits');
         for(const benefit of reward.benefits){const status=benefit.ownership==='missing'?'Not collected':benefit.ownership==='stale'?'Ownership unknown · stale data':'Ownership unknown';people.append(node('li',`${benefit.name} — ${benefit.wishlist?'Wishlist · ':''}${status}`));}
         li.append(people);rewards.append(li);
       }
       section.append(rewards);target.append(section);
     }
-    if(!results.length){const empty=node('div','','group-panel');empty.append(node('h3',catalogLoading?'Loading collection sources…':!selected.size?'Choose who’s coming':'No matching activities yet'),node('p',catalogLoading?'Your group will appear as the catalogs arrive.':catalogErrors?'Some catalogs could not load. Retry below or refresh in a moment.':ownedBy!=='any'?'No rewards match all your filters. Try another owner count or selection. Everyone selected needs fresh public progress for a confirmed count.':'Try All acquisition sources, adjust your filters, or ask members to share and sync their collections in Field Notes.','group-small'));target.append(empty);}
+    if(!results.length){const empty=node('div','','group-panel');empty.append(node('h3',catalogLoading?'Loading collection sources…':!selected.size?'Choose who’s coming':'No matching activities yet'),node('p',catalogLoading?'Your group will appear as the catalogs arrive.':catalogErrors?'Some catalogs could not load. Retry below or refresh in a moment.':ownedBy!=='any'?$('group-require-complete').checked?'No rewards match all your filters. Require progress for everyone excludes rewards with any unknown progress. Turn it off to compare available progress, or adjust your filters.':'No rewards match all your filters. Try another owner count or selection. At least one selected character needs fresh public progress for a count filter.':'Try All acquisition sources, adjust your filters, or ask members to share and sync their collections in Field Notes.','group-small'));target.append(empty);}
   }
   async function loadCatalogs() {
     if(catalogLoading)return;catalogLoading=true;$('group-catalog-retry').disabled=true;renderResults();
@@ -222,7 +222,7 @@
   $('group-leave').addEventListener('click',()=>run(async()=>{await api(active.is_owner?'delete':'leave',{group_id:active.id});clearDetail();await loadList();feedback('Group closed or left. Your personal journal is unchanged.');}));
   $('group-reload').addEventListener('click',()=>run(loadList));
   $('group-refresh').addEventListener('click',()=>run(async()=>{try{const data=await api(`detail?id=${encodeURIComponent(active.id)}`);accept(data);feedback('Showing the latest saved group progress. Members can sync new collections in Field Notes.');}catch(error){if([401,404].includes(error.status)){clearDetail();await loadList();}throw error;}}));
-  for(const id of ['group-search','group-collection','group-scope','group-owned-by','group-owner-count','group-wishlist-only','group-everyone'])$(id).addEventListener(['group-search','group-owner-count'].includes(id)?'input':'change',()=>{limit=12;renderResults();});
+  for(const id of ['group-search','group-collection','group-scope','group-owned-by','group-owner-count','group-require-complete','group-wishlist-only','group-everyone'])$(id).addEventListener(['group-search','group-owner-count'].includes(id)?'input':'change',()=>{limit=12;renderResults();});
   $('group-more').addEventListener('click',()=>{limit+=12;renderResults();});$('group-catalog-retry').addEventListener('click',loadCatalogs);
   async function refresh() {
     if(!active||busy||document.hidden)return;

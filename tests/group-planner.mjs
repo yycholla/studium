@@ -72,10 +72,10 @@ test('ownership filters count selected characters per reward, including public i
   assert.deepEqual(ids({}),[1,2,3],'default remains useful-reward comparison');
 });
 
-test('unknown and stale participants cannot establish exact ownership, even with wishlist goals',()=>{
+test('complete-progress mode excludes unknown and stale participants even with wishlist goals',()=>{
   for(const extra of [{share_collections:false},{sync:null},{sync:{status:'unavailable',checked_at:timestamp/1000,snapshot:{source_updated_at:new Date(timestamp).toISOString(),collections:{mounts:{visibility:'public',ids:[]}}}}}]) {
     const members=[member('Alice',[],[1]),member('Unknown',[],[1],extra)];
-    for(const ownedBy of ['none','one','some','all-but-one','all','exact'])assert.deepEqual(compare(catalogs,members,{ownedBy,ownerCount:0,timestamp}),[]);
+    for(const ownedBy of ['none','one','some','all-but-one','all','exact'])assert.deepEqual(compare(catalogs,members,{ownedBy,ownerCount:0,requireComplete:true,timestamp}),[]);
     const ordinary=compare(catalogs,members,{timestamp});assert.deepEqual(ordinary[0].rewards[0].ownership,{owned:0,missing:1,unknown:1,total:2});
     assert.ok(compare(catalogs,members,{ownedBy:'none',selected:['Alice'],timestamp}).length>0);
   }
@@ -90,4 +90,18 @@ test('ownership filtering happens before source ranking and combines with benefi
   assert.deepEqual(compare(catalogs,members,{ownedBy:'all',wishlistOnly:true,timestamp}),[]);
   assert.deepEqual(compare(catalogs,members,{ownedBy:'one',query:'Nightmare',timestamp}),[]);
   assert.deepEqual(compare(catalogs,members,{ownedBy:'one',collection:'minions',timestamp}),[]);
+});
+
+test('available-progress counts match zero and one known owners without classifying unknowns as missing',()=>{
+  const members=[member('Alice',[]),member('Bob',[2]),member('Unknown',[],[1],{sync:null})];
+  const none=compare(catalogs,members,{ownedBy:'none',timestamp});
+  assert.ok(none.length>0);assert.deepEqual(none[0].rewards[0].ownership,{owned:0,missing:2,unknown:1,total:3});
+  assert.equal(none[0].missingPeople.length,2,'Unknown character never counts as confirmed missing');
+  const one=compare(catalogs,members,{ownedBy:'one',timestamp});assert.deepEqual(one[0].rewards.map(r=>r.id),[2]);
+  for(const ownedBy of ['some','all-but-one'])assert.deepEqual(compare(catalogs,members,{ownedBy,timestamp})[0].rewards.map(r=>r.id),[2]);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'exact',ownerCount:1,timestamp})[0].rewards.map(r=>r.id),[2]);
+  assert.deepEqual(compare(catalogs,members,{ownedBy:'none',requireComplete:true,timestamp}),[]);
+  const all=compare(catalogs,members,{ownedBy:'all',selected:['Bob','Unknown'],timestamp});
+  assert.deepEqual(all[0].rewards[0].ownership,{owned:1,missing:0,unknown:1,total:2});assert.deepEqual(all[0].people,[]);
+  for(const ownedBy of ['none','one','some','all-but-one','all','exact'])assert.deepEqual(compare(catalogs,members,{ownedBy,ownerCount:0,selected:['Unknown'],timestamp}),[],'No data cannot establish zero owners');
 });
