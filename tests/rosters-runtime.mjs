@@ -29,6 +29,8 @@ export default {async test(){
   const parsed=await parseRoster(entry);
   check(parsed.characters.length===1&&parsed.characters[0].lodestone_id==='34567'&&parsed.characters[0].home_world==='Balmung'&&parsed.pages===2,'Roster parser or pagination');
   check(parsed.characters[0].name==='Test & Friend','Text chunks');
+  const friends=entry.replace('<ul><li class=\"entry\">','<div class=\"entry\">').replace('</li></ul></div>','</div></div>').replace('a class=\"entry__bg\"','a class=\"entry__link\"');
+  check((await parseRoster(friends)).characters.length===1,'Friends use div entries and entry__link anchors');
   check(await findFreeCompany('<div class="character__freecompany__name"><a href="/lodestone/freecompany/9230831123737734814/">FC</a></div>')==='9230831123737734814','FC precision');
   for(const html of ['<h2>Private profile</h2>','<h2>Friends</h2><p>No friends</p>','<h2>Maintenance</h2>']){let threw=false;try{await parseRoster(html);}catch{threw=true;}check(threw,'Private/empty/outage must not be treated as complete roster');}
   const calls=[];

@@ -20,11 +20,13 @@ async function page(fetcher,path) {
 // Native Workers HTML parser: restrict matches to roster entries, never sidebar character links.
 export async function parseRoster(html) {
   const entries=[];let current=null,pager='',heading='';
+  const rows=['.ldst__window > ul > li.entry','.ldst__window > div.entry'];
+  const within=selector=>rows.map(row=>`${row} ${selector}`).join(', ');
   const parser=new HTMLRewriter()
-    .on('.ldst__window li.entry',{element(e){current={lodestone_id:'',name:'',home_world:''};entries.push(current);e.onEndTag(()=>{current=null;});}})
-    .on('.ldst__window li.entry a.entry__bg',{element(e){const id=e.getAttribute('href')?.match(/^\/lodestone\/character\/([1-9]\d{0,11})\/?$/)?.[1];if(current&&id)current.lodestone_id=id;}})
-    .on('.ldst__window li.entry .entry__name',{text(t){if(current)current.name+=t.text;}})
-    .on('.ldst__window li.entry .entry__world',{text(t){if(current)current.home_world+=t.text;}})
+    .on(rows.join(', '),{element(e){current={lodestone_id:'',name:'',home_world:''};entries.push(current);e.onEndTag(()=>{current=null;});}})
+    .on(within('a.entry__bg')+', '+within('a.entry__link'),{element(e){const id=e.getAttribute('href')?.match(/^\/lodestone\/character\/([1-9]\d{0,11})\/?$/)?.[1];if(current&&id)current.lodestone_id=id;}})
+    .on(within('.entry__name'),{text(t){if(current)current.name+=t.text;}})
+    .on(within('.entry__world'),{text(t){if(current)current.home_world+=t.text;}})
     .on('.btn__pager',{text(t){pager+=t.text;}})
     .on('h2, h3',{text(t){heading+=t.text;}});
   await parser.transform(new Response(html)).text();
