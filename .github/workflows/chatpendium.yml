@@ -115,7 +115,9 @@ jobs:
       - name: Prepare repository website
         run: |
           mkdir -p public
-          cp artifacts/repo.json public/repo.json
+          curl --fail --silent --show-error --location "https://raw.githubusercontent.com/${{ github.repository }}/main/plugin/additional-repo.json" -o artifacts/additional-repo.json
+          curl --fail --silent --show-error --location "https://raw.githubusercontent.com/${{ github.repository }}/main/plugin/merge_repo.py" -o artifacts/merge_repo.py
+          python3 artifacts/merge_repo.py artifacts/repo.json artifacts/additional-repo.json public/repo.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

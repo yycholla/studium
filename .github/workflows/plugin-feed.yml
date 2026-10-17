@@ -1,0 +1,36 @@
+name: Publish combined Dalamud feed
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: chatpendium
+  cancel-in-progress: false
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download published Chatpendium manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download chatpendium-v0.1.0 --repo "$GITHUB_REPOSITORY" --pattern repo.json --dir artifacts
+      - name: Merge and verify public packages
+        run: |
+          python3 plugin/merge_repo.py artifacts/repo.json plugin/additional-repo.json public/repo.json
+          python3 plugin/verify_public_repo.py public/repo.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: feed
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

@@ -1,0 +1,27 @@
+[
+  {
+    "Author": "Odd Realities",
+    "Name": "Odd Realities Source",
+    "InternalName": "OddRealities.Source",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "Reports local duty queue state and Waitingway login status to the loopback Odd Realities collector. Does not send chat, accept duties, or control the game.",
+    "ApplicableVersion": "any",
+    "Tags": [
+      "notifications",
+      "queue"
+    ],
+    "DalamudApiLevel": 15,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "Punchline": "Read-only duty queue and pop updates for your private gateway.",
+    "AcceptsFeedback": true,
+    "RepoUrl": "https://github.com/yycholla/studium",
+    "DownloadLinkInstall": "https://github.com/yycholla/studium/releases/download/oddrealities-source-v0.1.0/OddRealities.Source.zip",
+    "DownloadLinkUpdate": "https://github.com/yycholla/studium/releases/download/oddrealities-source-v0.1.0/OddRealities.Source.zip",
+    "IsHide": false,
+    "IsTestingExclusive": false,
+    "LastUpdate": 1792274685
+  }
+]
